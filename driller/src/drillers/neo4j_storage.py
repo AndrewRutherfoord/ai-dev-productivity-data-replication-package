@@ -22,6 +22,17 @@ class Neo4jStorage:
         self.batch_size = batch_size
         self.batch = []
 
+    def connect(self):
+        """
+        Validates connectivity to Neo4j.
+        """
+        try:
+            with self.driver.session() as session:
+                session.run("RETURN 1")
+        except Exception as e:
+            logger.exception("Failed to connect to Neo4j")
+            raise e
+
     def close(self):
         """
         Closes the Neo4j connection.

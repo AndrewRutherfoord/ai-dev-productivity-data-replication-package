@@ -9,10 +9,14 @@ readme = "README.md"
 python = "^3.10"
 common = { path = "../common", develop = true }
 fastapi = "^0.111.0"
-aio-pika = "^9.4.1"
+celery = {extras = ["redis"], version = "^5.4.0"}
+redis = "^5.0.0"
+async-timeout = "^4.0.3"
 sqlmodel = "^0.0.19"
 sqlalchemy-utils = "^0.41.2"
 alembic = "^1.13.1"
+requests = "^2.32.0"
+uvicorn = "^0.29.0"
 
 
 [build-system]

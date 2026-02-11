@@ -7,42 +7,39 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 
-from src.drill_queue_rpc import RabbitMessageQueueRPC, RepositoryDrillerClient
+from src.celery_client import DrillerTaskClient
 from src.routers import driller_router, files, job_statuses
 
 logger = logging.getLogger(__name__)
 
-user = os.environ.get("RABBITMQ_DEFAULT_USER", "guest")
-passwd = os.environ.get("RABBITMQ_DEFAULT_PASS", "guest")
-host = os.environ.get("RABBITMQ_HOST", "127.0.0.1")
-port = os.environ.get("RABBITMQ_PORT", 5672)
+driller_client: DrillerTaskClient | None = None
 
-driller_client: RabbitMessageQueueRPC | None = None
-
-# ---------- Rabbit MQ ----------
+# ---------- Celery ----------
 
 
-async def setup_jobs_queue():
+async def setup_celery_client():
     global driller_client
-    driller_client = RepositoryDrillerClient(user, passwd, host, port)
-    await driller_client.connect()
+    driller_client = DrillerTaskClient()
+    await driller_client.startup()
+    logger.info("Celery client initialized")
 
 
-async def teardown_jobs_queue():
+async def teardown_celery_client():
     global driller_client
     if driller_client is not None:
-        await driller_client.close()
+        await driller_client.shutdown()
     driller_client = None
+    logger.info("Celery client shutdown")
 
 
-async def get_client(request: Request = None) -> RabbitMessageQueueRPC:
-    """Gets the RabbitMQ Driller RPC Client
-    To be used with dependency ejection for endpoint to access the RPC client.
+async def get_client(request: Request = None) -> DrillerTaskClient:
+    """Gets the Celery Driller Client
+    To be used with dependency injection for endpoint to access the Celery client.
     """
     global driller_client
 
-    if driller_client is None or driller_client.connection.is_closed:
-        raise ConnectionError("Could not connect to RabbitMQ client.")
+    if driller_client is None:
+        raise ConnectionError("Could not initialize Celery client.")
 
     if request is not None:
         # Sets the drill client state in request. Can be accessed in endpoint with request injection and `request.state.driller_client`
@@ -51,21 +48,21 @@ async def get_client(request: Request = None) -> RabbitMessageQueueRPC:
     return None
 
 
-# ---------- FastAPi ----------
+# ---------- FastAPI ----------
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Setup the RPC Queue on startup
-    await setup_jobs_queue()
+    # Setup the Celery client on startup
+    await setup_celery_client()
 
     yield
 
-    # Disconnect the queue on teardown.
-    await teardown_jobs_queue()
+    # Shutdown Celery client on teardown
+    await teardown_celery_client()
 
 # Instantiate app with global dependency injection and the lifespan
-# `get_client` adds the Rabbit MQ RPC instance to the request object
+# `get_client` adds the Celery client instance to the request object
 app = FastAPI(dependencies=[Depends(get_client)], lifespan=lifespan)
 
 # Attach the routers to the FastAPI App

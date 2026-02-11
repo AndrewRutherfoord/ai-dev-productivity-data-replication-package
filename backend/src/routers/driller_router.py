@@ -168,9 +168,9 @@ async def create_jobs(
         session.commit()
         session.refresh(db_job_status)
 
-        background_tasks.add_task(
-            request.state.driller_client.call,
-            single_job.model_dump_json(),
+        # Enqueue drill job with Celery
+        task_id = request.state.driller_client.enqueue_drill_job(
+            single_job.model_dump_json()
         )
 
         job_list.append(

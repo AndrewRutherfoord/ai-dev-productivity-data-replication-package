@@ -15,13 +15,13 @@ ENV POETRY_NO_INTERACTION=1 \
 
 WORKDIR /app/backend
 
-COPY ./backend/entrypoint.sh ./
-RUN chmod +x ./entrypoint.sh
-
 COPY ./backend/poetry.lock ./backend/pyproject.toml ./
 COPY ./common/ ../common/
 
 RUN poetry install && rm -rf $POETRY_CACHE_DIR
+
+COPY ./backend/entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
 
 COPY ../backend/src ./backend
 

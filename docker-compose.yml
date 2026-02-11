@@ -1,6 +1,8 @@
+
 volumes:
   neo4j:
-  rabbitmq:
+  redis:
+
 services:
   neo4j:
     container_name: neo4j
@@ -22,21 +24,19 @@ services:
       # Location where Database Dump files are stored. Also loaded from here.
       - ./volumes/neo4j_import:/var/lib/neo4j/import
 
-  # Message Queue used to send send & distrubte drill jobs to driller-workers
-  rabbitmq:
-    image: rabbitmq:3-management
-    container_name: rabbitmq
-    hostname: "rabbitmq"
+  # Redis for Celery message broker and result storage
+  redis:
+    image: redis:7-alpine
+    container_name: neorepro-redis
+    hostname: "redis"
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "6379:6379"
     volumes:
-      - rabbitmq:/var/lib/rabbitmq/mnesia/
+      - redis:/data
     healthcheck:
-      # Pings rabbitmq service to check if started
-      test: rabbitmq-diagnostics check_port_connectivity
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 5s
+      timeout: 3s
       retries: 5
 
   driller-worker:
@@ -46,35 +46,42 @@ services:
     environment:
       - LOG_LEVEL=${DRILLER_LOG_LEVEL}
       - NEO4J_LOG_LEVEL=${DRILLER_NEO4J_LOG_LEVEL}
-      - RABBITMQ_LOG_LEVEL=${DRILLER_RABBITMQ_LOG_LEVEL}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_BROKER_DB=1
+      - NEO4J_HOST=neo4j
+      - NEO4J_PORT=7687
+      - BACKEND_URL=http://backend:8000
     env_file: .env
     volumes:
-      - ./driller/:/app/driller/ # For Development
-      - ./common/:/app/common/ # For Development
-
+      - ./driller/src:/app/driller/src # For Development
+      - ./common/src:/app/common/src # For Development
       - ./volumes/repos:/app/repositories # Location of Repos to Drill/Where they will be cloned.
-    deploy:
-      replicas: 3
     depends_on:
-      rabbitmq:
+      redis:
         condition: service_healthy
       neo4j:
         condition: service_started
+    command: celery -A src.celery_app worker --loglevel=info --concurrency=3 -Q driller_queue
+    deploy:
+      replicas: 2
 
   backend:
     container_name: backend
     ports:
-      - 8000:8000
+      - ${BACKEND_PORT}:8000
     build:
       context: ./
       dockerfile: ./backend/Dockerfile
     env_file: .env
     environment:
-      - RABBITMQ_HOST=localhost
-    network_mode: host
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_BROKER_DB=1
+    # network_mode: host
     volumes:
-      - ./backend/:/app/backend/ # For Development
-      - ./common/:/app/common/ # For Development
+      - ./backend/src:/app/backend/src # For Development
+      - ./common/src:/app/common/src # For Development
 
       - ./volumes/queries:/app/queries # Location of Cypher Queries
       - ./volumes/configs:/app/configs # Location of Drill Config Files
@@ -82,8 +89,8 @@ services:
     depends_on:
       neo4j:
         condition: service_started
-      driller-worker:
-        condition: service_started
+      redis:
+        condition: service_healthy
 
   frontend:
     container_name: frontend
