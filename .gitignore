@@ -182,3 +182,6 @@ rabbitmq
 /volumes/neo4j_import/
 /volumes/scripts/
 !/volumes/queries/examples/**/*
+
+
+values.local.yaml

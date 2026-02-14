@@ -13,7 +13,7 @@ export interface PaginatedResults<T> {
  */
 export abstract class Repository {
   protected http: AxiosInstance
-  constructor(endpoint: string, baseDomain: string = 'http://127.0.0.1:8000') {
+  constructor(endpoint: string, baseDomain: string = '/api') {
     this.http = axios.create({ baseURL: `${baseDomain}/${endpoint}` })
   }
 }

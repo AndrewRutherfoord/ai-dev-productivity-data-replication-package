@@ -1,0 +1,52 @@
+# Build stage
+FROM python:3.10-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    POETRY_VERSION=1.8.3 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=0 \
+    POETRY_CACHE_DIR=/tmp/poetry_cache
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir poetry==$POETRY_VERSION
+
+WORKDIR /app/backend
+
+COPY ./backend/poetry.lock ./backend/pyproject.toml ./
+COPY ./common/ ../common/
+
+RUN poetry install --no-dev && rm -rf $POETRY_CACHE_DIR
+
+# Runtime stage
+FROM python:3.10-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+COPY ./backend/src ./src
+COPY ./common ../common
+COPY ./backend/entrypoint.sh ./
+RUN chmod +x ./entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+EXPOSE 8000
+
+ENTRYPOINT ["sh", "./entrypoint.sh"]

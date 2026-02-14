@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import os
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 
 import logging
@@ -65,16 +65,16 @@ async def lifespan(app: FastAPI):
 # `get_client` adds the Celery client instance to the request object
 app = FastAPI(dependencies=[Depends(get_client)], lifespan=lifespan)
 
-# Attach the routers to the FastAPI App
-app.include_router(driller_router.router)
-app.include_router(files.router)
-app.include_router(job_statuses.router)
+prefix_router = APIRouter(prefix="/api")
 
-# Allow the Vue JS frontend to access the backend. 
-# Default port is 5173 but can be set in environment file.
+# Attach the routers to the FastAPI App
+prefix_router.include_router(driller_router.router)
+prefix_router.include_router(files.router)
+prefix_router.include_router(job_statuses.router)
+
+# Allow all origins
 origins = [
-    f"http://localhost:{os.environ.get('FRONTEND_PORT', 5173)}",
-    f"http://127.0.0.1:{os.environ.get('FRONTEND_PORT', 5173)}"
+    "*",
 ]
 
 # Very open CORS. Stricter not necessary since app won't be deployed.
@@ -87,7 +87,10 @@ app.add_middleware(
 )
 
 
-@app.get("/healthcheck")
+@prefix_router.get("/healthcheck")
 def get_healthcheck():
     """Endpoint to use to check backend life."""
     return "OK"
+
+
+app.include_router(prefix_router)
