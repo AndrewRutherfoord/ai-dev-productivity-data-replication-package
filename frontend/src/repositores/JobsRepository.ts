@@ -40,7 +40,7 @@ export class JobsRepository
     DeleteItemRepository
 {
   constructor() {
-    super('jobs')
+    super('jobs/')
   }
 
   async getAll(options: ListOptions = { limit: 10, offset: 0 }) {
