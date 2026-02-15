@@ -1,34 +1,30 @@
 # Build stage
-FROM python:3.10-slim AS builder
+FROM python:3.12-slim AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    POETRY_VERSION=1.8.3 \
-    POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=0 \
-    POETRY_CACHE_DIR=/tmp/poetry_cache
+    PYTHONUNBUFFERED=1
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir poetry==$POETRY_VERSION
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_SYSTEM_PYTHON=1
 
 WORKDIR /app/backend
 
-COPY ./backend/poetry.lock ./backend/pyproject.toml ./
-COPY ./common/ ../common/
+COPY ./backend/pyproject.toml ./backend/uv.lock ./
+COPY ./common/ /app/common/
 
-RUN poetry install --no-dev && rm -rf $POETRY_CACHE_DIR
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project --no-dev
 
 # Runtime stage
-FROM python:3.10-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app/backend/src \
+    PATH="/app/backend/.venv/bin:$PATH"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
@@ -36,12 +32,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app/backend
 
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/backend/.venv /app/backend/.venv
 
-COPY ./backend/src ./src
-COPY ./common ../common
-COPY ./backend/entrypoint.sh ./
+COPY ./backend ./
+COPY ./common /app/common
 RUN chmod +x ./entrypoint.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \

@@ -20,7 +20,7 @@ group "default" {
 
 target "backend" {
   context    = "."
-  dockerfile = "./backend/Dockerfile.prod"
+  dockerfile = "./backend/Dockerfile"
   platforms  = "${PLATFORMS}"
 
   tags = [
@@ -32,7 +32,7 @@ target "backend" {
 
 target "driller" {
   context    = "."
-  dockerfile = "./driller/Dockerfile.prod"
+  dockerfile = "./driller/Dockerfile"
   platforms  = "${PLATFORMS}"
 
   tags = [

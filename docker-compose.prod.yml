@@ -29,8 +29,9 @@ services:
       - neo4j_logs:/logs
       - neo4j_plugins:/plugins
       - ./volumes/neo4j_import:/var/lib/neo4j/import
-    expose:
-      - "7687"
+    ports:
+      - "7687:7687"
+      - "7474:7474"
     healthcheck:
       test: ["CMD", "cypher-shell", "-u", "${NEO4J_USER}", "-p", "${NEO4J_PASSWORD}", "RETURN 1"]
       interval: 10s
@@ -46,8 +47,6 @@ services:
       - app
     volumes:
       - redis_data:/data
-    expose:
-      - "6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -66,8 +65,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    expose:
-      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
