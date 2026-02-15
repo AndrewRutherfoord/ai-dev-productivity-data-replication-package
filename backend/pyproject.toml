@@ -17,6 +17,7 @@ sqlalchemy-utils = "^0.41.2"
 alembic = "^1.13.1"
 requests = "^2.32.0"
 uvicorn = "^0.29.0"
+psycopg2-binary = "^2.9"
 
 
 [build-system]

@@ -1,17 +1,15 @@
 import logging
-from sqlmodel import Session, SQLModel, create_engine
+import os
+from sqlmodel import Session, create_engine
 
 logger = logging.getLogger(__name__)
 
-# Configuring database connection to sqlite.
+# Configuring database connection.
 # Database migrations are handled by Alembic. If any changed are made to the database models
 # then consult backend README about how to migrate.
 
-sqlite_file_name = "database.sqlite"
-sqlite_url = f"sqlite:///src/{sqlite_file_name}"
-
-connect_args = {"check_same_thread": False}
-engine = create_engine(sqlite_url, echo=True, connect_args=connect_args)
+DATABASE_URL = os.environ["DATABASE_URL"]
+engine = create_engine(DATABASE_URL, echo=True)
 
 
 def get_session():

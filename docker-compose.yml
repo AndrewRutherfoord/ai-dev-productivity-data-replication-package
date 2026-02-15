@@ -2,6 +2,7 @@
 volumes:
   neo4j:
   redis:
+  postgres:
 
 services:
   neo4j:
@@ -35,6 +36,25 @@ services:
       - redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL for backend database
+  postgres:
+    image: postgres:16-alpine
+    container_name: neorepro-postgres
+    hostname: "postgres"
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -78,6 +98,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_BROKER_DB=1
+      - DATABASE_URL=${DATABASE_URL}
     # network_mode: host
     volumes:
       - ./backend/src:/app/backend/src # For Development
@@ -90,6 +111,8 @@ services:
       neo4j:
         condition: service_started
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
 
   frontend:

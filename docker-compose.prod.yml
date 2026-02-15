@@ -5,6 +5,7 @@ volumes:
   neo4j_logs:
   neo4j_plugins:
   redis_data:
+  postgres_data:
 
 networks:
   app:
@@ -53,6 +54,26 @@ services:
       timeout: 3s
       retries: 5
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: neorepro-postgres
+    restart: unless-stopped
+    networks:
+      - app
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/andrewrutherfoord/neorepro-msr-tool/backend:latest
     container_name: backend
@@ -66,10 +87,17 @@ services:
       REDIS_BROKER_DB: 1
       NEO4J_HOST: neo4j
       NEO4J_PORT: 7687
+      DATABASE_URL: ${DATABASE_URL}
+    volumes:
+      - ./volumes/configs:/app/configs
+      - ./volumes/queries:/app/queries
+      - ./volumes/neo4j_import:/app/neo4j_import
     depends_on:
       neo4j:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     expose:
       - "8000"
@@ -87,6 +115,8 @@ services:
       NEO4J_HOST: neo4j
       NEO4J_PORT: 7687
       BACKEND_URL: http://backend:8000
+    volumes:
+      - ./volumes/repos:/app/repositories
     depends_on:
       neo4j:
         condition: service_healthy
