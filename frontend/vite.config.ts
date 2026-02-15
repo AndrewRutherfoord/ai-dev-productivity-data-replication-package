@@ -13,5 +13,14 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
-  assetsInclude: ['**/*.yaml']
+  assetsInclude: ['**/*.yaml'],
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
 })

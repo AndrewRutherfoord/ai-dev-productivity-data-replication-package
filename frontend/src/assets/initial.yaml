@@ -1,7 +1,8 @@
 
 defaults:
   delete_clone: false
-  index_file_modifications: False
+  index_file_modifications: false
+  index_file_diff: false
   pydriller: # Configuration of pydriller directly.
     since: <A Date string>
     from_commit: <some str>

@@ -158,7 +158,8 @@ function showDialog(item: Job) {
 }
 
 // Job Status Updates - Websocket
-const { status } = useWebSocket('ws://127.0.0.1:8000/jobs/statuses/', { onMessage })
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+const { status } = useWebSocket(`${wsProtocol}//${window.location.host}/api/jobs/statuses`, { onMessage })
 
 let messageBuffer: { job: Job; job_status: JobStatus }[] = []
 

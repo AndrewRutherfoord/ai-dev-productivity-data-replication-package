@@ -1,28 +1,31 @@
-FROM python:3.10
-
+FROM python:3.12
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV POETRY_VERSION=1.8.3
 
-RUN pip install --upgrade pip --no-cache-dir && \
-  pip install poetry==$POETRY_VERSION
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-ENV POETRY_NO_INTERACTION=1 \
-  POETRY_VIRTUALENVS_IN_PROJECT=1 \
-  POETRY_VIRTUALENVS_CREATE=0 \
-  POETRY_CACHE_DIR=/tmp/poetry_cache
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_SYSTEM_PYTHON=1 \
+    PATH="/app/driller/.venv/bin:$PATH"
 
-WORKDIR /app/driller
+WORKDIR /app
 
-RUN git config --global --add safe.directory '*'
+COPY ./driller/pyproject.toml ./driller/uv.lock ./
+COPY ./common/ /common/
 
-COPY ./driller/poetry.lock ./driller/pyproject.toml ./
-COPY ./common/ ../common/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project
 
-RUN poetry install --with test && rm -rf $POETRY_CACHE_DIR
-
-COPY ./driller/src ./driller
+COPY ./driller/src ./src
 COPY ./driller/tests ./tests
 
-CMD [ "poetry", "run", "python3", "-m", "src.main" ]
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src"
+
+# Change ownership and permissions of config.yaml
+RUN chown -R root:root /app/
+RUN chmod -R 755 /app/
+
+CMD [ "python3", "-m", "src.main" ]

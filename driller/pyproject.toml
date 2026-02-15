@@ -1,35 +1,36 @@
-[tool.poetry]
+[project]
 name = "driller"
 version = "0.1.0"
 description = ""
-authors = ["Andrew Rutherfoord <andrew.rutherfoord@live.com>"]
+authors = [{name = "Andrew Rutherfoord", email = "andrew.rutherfoord@live.com"}]
 readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "common",
+    "celery[redis]>=5.4.0",
+    "redis>=5.0.0",
+    "async-timeout>=4.0.3",
+    "pydriller>=2.6",
+    "neo4j>=5.20.0",
+    "pyyaml>=6.0.1",
+    "jsonschema>=4.22.0",
+    "requests>=2.32.0",
+]
 
-[tool.poetry.dependencies]
-python = "^3.10"
-common = { path = "../common", develop = true }
-celery = {extras = ["redis"], version = "^5.4.0"}
-redis = "^5.0.0"
-async-timeout = "^4.0.3"
-pydriller = "^2.6"
-neo4j = "^5.20.0"
-pyyaml = "^6.0.1"
-jsonschema = "^4.22.0"
-requests = "^2.32.0"
+[project.optional-dependencies]
+test = [
+    "pytest>=8.2.2",
+    "pytest-mock>=3.14.0",
+    "coverage>=7.5.4",
+]
 
-[tool.poetry.group.test.dependencies]
-pytest = "^8.2.2"
-pytest-mock = "^3.14.0"
-coverage = "^7.5.4"
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
+[project.scripts]
 driller-worker = "src.main:exec"
 test-client = "src.test_client:exec"
 test-config-driller = "src.config_driller:main"
+
+[tool.uv.sources]
+common = { path = "../common", editable = true }
 
 [tool.pytest.ini_options]
 log_cli = true

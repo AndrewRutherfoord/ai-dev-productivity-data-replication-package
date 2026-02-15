@@ -27,14 +27,6 @@ target "backend" {
     "${REGISTRY}/backend:${IMAGE_TAG}"
   ]
 
-  cache-from = [
-    "type=registry,ref=${REGISTRY}/backend:cache"
-  ]
-
-  cache-to = [
-    "type=registry,ref=${REGISTRY}/backend:cache,mode=max"
-  ]
-
   push = true
 }
 
@@ -47,13 +39,6 @@ target "driller" {
     "${REGISTRY}/driller:${IMAGE_TAG}"
   ]
 
-  cache-from = [
-    "type=registry,ref=${REGISTRY}/driller:cache"
-  ]
-
-  cache-to = [
-    "type=registry,ref=${REGISTRY}/driller:cache,mode=max"
-  ]
 
   push = true
 }
@@ -67,13 +52,6 @@ target "frontend" {
     "${REGISTRY}/frontend:${IMAGE_TAG}"
   ]
 
-  cache-from = [
-    "type=registry,ref=${REGISTRY}/frontend:cache"
-  ]
-
-  cache-to = [
-    "type=registry,ref=${REGISTRY}/frontend:cache,mode=max"
-  ]
 
   push = true
 }

@@ -1,30 +1,33 @@
-FROM python:3.10
-
+FROM python:3.12
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV POETRY_VERSION=1.8.3
 
-RUN pip install --upgrade pip
-RUN pip install poetry==$POETRY_VERSION
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-ENV POETRY_NO_INTERACTION=1 \
-  POETRY_VIRTUALENVS_IN_PROJECT=1 \
-  POETRY_VIRTUALENVS_CREATE=0 \
-  POETRY_CACHE_DIR=/tmp/poetry_cache
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_SYSTEM_PYTHON=1 \
+    PATH="/app/backend/.venv/bin:$PATH"
 
-WORKDIR /app/backend
+WORKDIR /app
 
-COPY ./backend/poetry.lock ./backend/pyproject.toml ./
-COPY ./common/ ../common/
+COPY ./backend/pyproject.toml ./backend/uv.lock ./
+COPY ./common/ /common/
 
-RUN poetry install && rm -rf $POETRY_CACHE_DIR
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-install-project
 
-COPY ./backend/entrypoint.sh ./
+COPY ./backend/src ./src
+COPY ./backend/tests ./tests
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONPATH="/app/src"
+
+# Change ownership and permissions of config.yaml
+RUN chown -R root:root /app/
+RUN chmod -R 755 /app/
+
+COPY ./backend/entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
 
-COPY ../backend/src ./backend
-
-# CMD ["fastapi","dev", "./backend/main.py"]
-ENTRYPOINT ["sh", "./entrypoint.sh" ]
-
+CMD [ "sh", "./entrypoint.sh" ]

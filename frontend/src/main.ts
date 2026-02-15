@@ -20,7 +20,7 @@ import Notifications from '@kyvg/vue3-notification'
 import axios from 'axios'
 
 
-axios.defaults.baseURL = 'http://127.0.0.1:8000/'
+axios.defaults.baseURL = '/'
 
 const app = createApp(App)
 
