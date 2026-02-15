@@ -8,8 +8,12 @@ from src.drillers.driller import RepositoryDriller
 from src.drillers.neo4j_pydriller_repository_storage import RepositoryNeo4jStorage
 from src.celery_app import app
 from src.cloner import clone_repository, remove_repository_clone
+from src.log_buffer import LogBuffer, LogBufferHandler
 
 logger = logging.getLogger(__name__)
+
+# Get settings from environment
+BACKEND_URL = os.environ.get("BACKEND_URL", "http://backend:8000")
 
 # Get settings from environment
 NEO4J_HOST = os.environ.get("NEO4J_HOST", "neo4j")
@@ -52,12 +56,22 @@ def drill_repository(self, drill_config_json: str) -> dict:
     """
     drill_config = None
     storage = None
+    log_buffer = None
+    log_handler = None
 
     try:
         # Parse config
         drill_config = SingleDrillConfig.model_validate_json(drill_config_json)
         job_id = drill_config.job_id
         repository = drill_config.repository
+
+        # Set up log buffer to send logs to backend periodically
+        log_buffer = LogBuffer(job_id, BACKEND_URL, send_interval=5)
+        log_handler = LogBufferHandler(log_buffer)
+        log_handler.setLevel(logging.INFO)
+        log_handler.setFormatter(logging.Formatter('%(name)s - %(message)s'))
+        logger.addHandler(log_handler)
+        log_buffer.start()
 
         logger.info(f"Starting drill for {repository.name} (job_id={job_id})")
 
@@ -124,6 +138,12 @@ def drill_repository(self, drill_config_json: str) -> dict:
         }
 
     finally:
+        # Stop log buffer and send remaining logs
+        if log_buffer is not None:
+            log_buffer.stop()
+        if log_handler is not None:
+            logger.removeHandler(log_handler)
+
         # Cleanup
         if storage is not None:
             storage.close()

@@ -56,6 +56,7 @@ class JobStatusBase(SQLModel):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     job_id: int | None = Field(default=None, foreign_key="job.id")
     message : str = Field(default="")
+    logs: list[dict] = Field(sa_column=sa.Column(sa.JSON), default_factory=list)
 
 
 class JobStatus(JobStatusBase, table=True):

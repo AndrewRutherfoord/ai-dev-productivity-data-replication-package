@@ -10,7 +10,7 @@ from fastapi import (
     WebSocketDisconnect,
 )
 from pydantic import BaseModel
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from common.models.jobs import (
     JobStatus,
@@ -27,7 +27,7 @@ logger.setLevel(logging.INFO)
 router = APIRouter()
 
 
-@router.websocket("/jobs/statuses/")
+@router.websocket("/jobs/statuses")
 async def websocket_endpoint(
     *,
     websocket: WebSocket,
@@ -44,7 +44,7 @@ async def websocket_endpoint(
         socket_connections.disconnect(websocket)
 
 
-@router.post("/jobs/status/")
+@router.post("/jobs/status")
 def create_job_status(
     *, session: Session = Depends(get_session), job_status: JobStatus
 ):
@@ -72,7 +72,13 @@ class StatusUpdate(BaseModel):
     message: str
 
 
-@router.post("/api/job-status")
+class LogsUpdate(BaseModel):
+    """Logs update from worker"""
+    job_id: int
+    logs: list[dict]  # List of {timestamp, level, message}
+
+
+@router.post("/job-status")
 async def receive_job_status(
     status_update: StatusUpdate,
     session: Session = Depends(get_session)
@@ -104,4 +110,36 @@ async def receive_job_status(
     })
 
     logger.info(f"Status update saved and broadcast for job {status_update.job_id}")
+    return {"ok": True}
+
+
+@router.post("/job-logs")
+async def receive_job_logs(
+    logs_update: LogsUpdate,
+    session: Session = Depends(get_session)
+):
+    """Receive logs from worker and append to latest job status"""
+
+    logger.info(f"Received {len(logs_update.logs)} logs for job {logs_update.job_id}")
+
+    # Get the latest status record for this job
+    statement = select(JobStatus).where(
+        JobStatus.job_id == logs_update.job_id
+    ).order_by(JobStatus.timestamp.desc())
+    job_status = session.exec(statement).first()
+
+    if not job_status:
+        logger.warning(f"No status record found for job {logs_update.job_id}")
+        raise HTTPException(status_code=404, detail=f"No status record found for job {logs_update.job_id}")
+
+    # Append new logs to existing logs
+    if job_status.logs is None:
+        job_status.logs = []
+    job_status.logs.extend(logs_update.logs)
+
+    session.add(job_status)
+    session.commit()
+    session.refresh(job_status)
+
+    logger.info(f"Logs appended for job {logs_update.job_id}, total logs: {len(job_status.logs)}")
     return {"ok": True}

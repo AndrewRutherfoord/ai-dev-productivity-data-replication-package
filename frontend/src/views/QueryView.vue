@@ -2,7 +2,7 @@
   <v-app-bar>
     <v-app-bar-title>Query Graph Database</v-app-bar-title>
 
-    <v-btn href="http://127.0.0.1:7474/">Open Neo4j Browser</v-btn>
+    <v-btn :href="neo4jBrowserUrl">Open Neo4j Browser</v-btn>
     <v-btn v-if="result" variant="outlined" prepend-icon="mdi-download" @click="saveToFile">Download Data</v-btn>
   </v-app-bar>
 
@@ -74,6 +74,9 @@ const route = useRoute()
 const queriesRepository = new QueryFileRepository();
 
 const toast = useToast();
+
+// Neo4j Browser URL from environment variable
+const neo4jBrowserUrl = import.meta.env.VITE_NEO4J_BROWSER_URL || 'http://127.0.0.1:7474/';
 
 const dialog = ref(false);
 const dialogData = ref<string>()
