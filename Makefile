@@ -1,4 +1,6 @@
-DCOMPOSE = docker compose
+-include Makefile.local
+
+DCOMPOSE ?= docker compose
 
 build:
 	$(DCOMPOSE) build
@@ -14,6 +16,17 @@ down:
 
 pull:
 	$(DCOMPOSE) pull
+
+# Remove all volumes (data will be lost). Has a confirm step to prevent accidental data loss.
+clear-volumes:
+	@read -p "This will remove all volumes and data. Are you sure? (y/N) " -n 1 -r; echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+			$(DCOMPOSE) down -v; \
+			docker volume prune -f; \
+			echo "All volumes removed."; \
+	else \
+			echo "Operation cancelled. No volumes were removed."; \
+	fi
 
 DOCKER_IMAGE = bscprojectgradingsystem-2023
 DOCKER_REGISTRY = ghcr.io/bscgradingsystem
