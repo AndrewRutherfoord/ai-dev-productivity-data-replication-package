@@ -25,7 +25,9 @@ class RepositoryDriller:
         config: RepositoryConfig,
     ):
         self.repository_path = repository_path
-        self.repository_name = self.repository_path.split("/")[-1]
+        self.repository_name = config.name
+        # Use URL as unique identifier; fall back to name for local repos
+        self.repository_url = config.url if config.url else config.name
         self.storage: RepositoryDataStorage = storage
         self.config: RepositoryConfig = config
 
@@ -43,7 +45,7 @@ class RepositoryDriller:
     def _handle_branches(self, branch_names: list[str]):
         """Stores a list of branch names."""
         for b in branch_names:
-            self.storage.store_branch(self.repository_name, b)
+            self.storage.store_branch(self.repository_url, b)
 
     def _handle_committer(self, committer):
         self.storage.store_developer(committer)
@@ -56,7 +58,7 @@ class RepositoryDriller:
             self.storage.store_modified_file(
                 commit,
                 file,
-                self.repository_name,
+                self.repository_url,
                 index_diff=self.config.index_file_diff,
             )
 
@@ -78,7 +80,7 @@ class RepositoryDriller:
                 self._handle_branches(list(commit.branches))
                 self._handle_committer(commit.author)
 
-                self.storage.store_commit(self.repository_name, commit)
+                self.storage.store_commit(self.repository_url, commit)
                 counter += 1
                 if self.config.index_file_modifications:
                     self._handle_modified_files(commit, commit.modified_files)
@@ -134,4 +136,4 @@ class RepositoryDriller:
 
     def drill_repository(self):
         """Drills the repository information and inserts it into the storage."""
-        self.storage.store_repository(self.repository_name)
+        self.storage.store_repository(self.repository_name, self.repository_url)

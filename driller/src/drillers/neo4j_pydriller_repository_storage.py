@@ -31,7 +31,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
         """Creates the uniqueness constraints for the repository database."""
         with self.driver.session() as session:
             session.run(
-                "CREATE CONSTRAINT IF NOT EXISTS FOR (r:Repository) REQUIRE r.name IS UNIQUE"
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (r:Repository) REQUIRE r.url IS UNIQUE"
             )
             # session.run(
             #     "CREATE CONSTRAINT IF NOT EXISTS FOR (b:Branch) REQUIRE b.hash IS UNIQUE"
@@ -43,36 +43,40 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Commit) REQUIRE c.hash IS UNIQUE"
             )
 
-    def store_repository(self, repo_name):
+    def store_repository(self, repo_name, repo_url):
         """Creates a `Repository` node
 
         Args:
             repo_name: Name of the repository to store.
+            repo_url: URL of the repository (used as unique identifier).
         """
-        self._add_to_batch("MERGE (r:Repository {name: $name})", {"name": repo_name})
+        self._add_to_batch(
+            "MERGE (r:Repository {url: $url}) SET r.name = $name",
+            {"url": repo_url, "name": repo_name},
+        )
 
-    def hash_branch(self, branch_name, repository_name):
-        """Hashes the branch name and repository name together to produce a unique identifier for the branch."""
+    def hash_branch(self, branch_name, repository_url):
+        """Hashes the branch name and repository URL together to produce a unique identifier for the branch."""
 
         return hashlib.sha224(
-            str(f"{branch_name}:{repository_name}").encode("utf-8")
+            str(f"{branch_name}:{repository_url}").encode("utf-8")
         ).hexdigest()
 
-    def store_branch(self, repo_name, branch_name):
+    def store_branch(self, repo_url, branch_name):
         """Store a `Branch` node.
 
         Args:
-            repo_name: Name of repository which branch belongs to.
-            branch_name: Name of branhc
+            repo_url: URL of repository which branch belongs to.
+            branch_name: Name of branch
         """
 
         self._add_to_batch(
-            "MATCH (r:Repository {name: $repo_name}) "
+            "MATCH (r:Repository {url: $repo_url}) "
             "MERGE (b:Branch {hash: $branch_hash })-[:PART_OF]->(r)"
-            "SET b.repository = $repo_name, b.name = $branch_name",
+            "SET b.repository = $repo_url, b.name = $branch_name",
             {
-                "branch_hash": self.hash_branch(branch_name, repo_name),
-                "repo_name": repo_name,
+                "branch_hash": self.hash_branch(branch_name, repo_url),
+                "repo_url": repo_url,
                 "branch_name": branch_name,
             },
         )
@@ -88,7 +92,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             },
         )
 
-    def store_commit(self, repo_name, commit: Commit):
+    def store_commit(self, repo_url, commit: Commit):
         """Stores an instance of a commit and links it to the author and it's parent commit."""
 
         # Create or Update commit and link it to the developer as an `AUTHOR` relationship.
@@ -131,13 +135,13 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
                 "MATCH (c:Commit {hash: $commit_hash})"
                 "MERGE (c)-[:IN_BRANCH]->(b)",
                 {
-                    "branch_hash": self.hash_branch(branch, repo_name),
+                    "branch_hash": self.hash_branch(branch, repo_url),
                     "commit_hash": commit.hash,
                 },
             )
 
     def store_modified_file(
-        self, commit: Commit, file: ModifiedFile, repository_name: str, index_diff=False
+        self, commit: Commit, file: ModifiedFile, repository_url: str, index_diff=False
     ):
         """Stores a file modification and links it to the commit.
         If the file change is a RENAME, creates a `RENAMED_TO` relation from the old file node.
@@ -145,7 +149,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
         Args:
             commit: Pydriller Commit which the file was modified in.
             file: PyDriller ModifiedFile instance to store.
-            repository_name: Used in filename hash.
+            repository_url: Used in filename hash to uniquely identify files per repo.
             index_diff: Whether to index the file git diff. Increases drilling time.
         """
 
@@ -153,7 +157,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
 
         # Creates or Updates a FIle instance and links it to the commit with a `MODIFIED` relationship
         # Relationship holds all the modification information
-        query_str = """MATCH (c:Commit {hash: $commit_hash}) 
+        query_str = """MATCH (c:Commit {hash: $commit_hash})
             MERGE (f:File {hash: $file_hash})
             MERGE (c)-[r:MODIFIED]->(f)
             SET f.name = $filename,
@@ -165,7 +169,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
         values = {
             "commit_hash": commit.hash,
             "file_hash": hashlib.sha224(
-                str(f"{file.filename}:{repository_name}").encode("utf-8")
+                str(f"{file.filename}:{repository_url}").encode("utf-8")
             ).hexdigest(),
             "filename": file.filename,
             "old_path": file.old_path,
@@ -193,10 +197,10 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
         if file.change_type.name == "RENAME":
             old_name = file.old_path.split("/")[-1]
             old_file_hash = hashlib.sha224(
-                str(f"{old_name}:{repository_name}").encode("utf-8")
+                str(f"{old_name}:{repository_url}").encode("utf-8")
             ).hexdigest()
             new_file_hash = hashlib.sha224(
-                str(f"{file.filename}:{repository_name}").encode("utf-8")
+                str(f"{file.filename}:{repository_url}").encode("utf-8")
             ).hexdigest()
             self._add_to_batch(
                 "MATCH  (old:File {hash : $old_hash})"

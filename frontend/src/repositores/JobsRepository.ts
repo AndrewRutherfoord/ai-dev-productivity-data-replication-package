@@ -8,7 +8,7 @@ import {
 } from './Repository'
 import type { Pagination } from './Pagination'
 
-type status = 'failed' | 'pending' | 'complete' | 'started'
+type status = 'failed' | 'pending' | 'complete' | 'started' | 'retrying'
 
 export interface JobStatus {
   job_id: number
@@ -57,6 +57,22 @@ export class JobsRepository
 
   async createList(data: any) : Promise<AxiosResponse<Job[]>> {
     return this.http.post(``, data);
+  }
+
+  async rerun(id: string | number): Promise<AxiosResponse<Job>> {
+    return this.http.post(`${id}/rerun`)
+  }
+
+  async requeue(id: string | number): Promise<AxiosResponse<Job>> {
+    return this.http.post(`${id}/requeue`)
+  }
+
+  async bulkRequeue(ids: number[]): Promise<AxiosResponse<Job[]>> {
+    return this.http.post(`bulk/requeue`, ids)
+  }
+
+  async bulkRerun(ids: number[]): Promise<AxiosResponse<Job[]>> {
+    return this.http.post(`bulk/rerun`, ids)
   }
 
   async delete(id: string | number): Promise<AxiosResponse<void>> {

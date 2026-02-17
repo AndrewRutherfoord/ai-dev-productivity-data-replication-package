@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import neo4j, { Driver, Session } from 'neo4j-driver'
 import { useNeo4jAuthStore } from '@/stores/neo4jStore'
 import { storeToRefs } from 'pinia'
@@ -18,10 +18,17 @@ export function useNeo4j() {
 
   // Initialize the driver and session
   const initialize = () => {
+    close()
+
+    const scheme = 'neo4j' // <-- adjust once, don’t auto-detect
+    const url = `${scheme}://${host.value}:${port.value}`
+    console.log(`Connecting to Neo4j at ${url} with user ${user.value}`)
+
     driver.value = neo4j.driver(
-      `neo4j://${host.value}:${port.value}`,
+      url,
       neo4j.auth.basic(user.value, password.value)
     )
+
     session.value = driver.value.session()
   }
 
@@ -34,6 +41,9 @@ export function useNeo4j() {
       driver.value.close()
     }
   }
+
+  // Reconnect when credentials change
+  watch([host, port, user, password], initialize)
 
   // Run a Cypher query
   const runQuery = async (query: string, parameters = {}) => {
@@ -90,7 +100,7 @@ export function useNeo4j() {
    * 
    * @param filename Filename from which to lead the backup.
    */
-  const restoreDatabaseBackup = async (filename:string) => {
+  const restoreDatabaseBackup = async (filename: string) => {
     return await runQuery(`CALL apoc.cypher.runFile("${filename}")`)
   }
 

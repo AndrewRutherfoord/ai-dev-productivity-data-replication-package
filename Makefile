@@ -26,4 +26,4 @@ DOCKER_NAMESPACE ?= bsc-grading-system
 build-push-images:
 	docker context use $(DOCKER_BUILDX_BUILDER)
 	docker buildx use $(DOCKER_BUILDX_BUILDER)
-	docker buildx bake --push -f docker-bake.hcl --set "*.platform=$(DOCKER_PLATFORM)"
+	docker buildx bake --push -f docker-bake.hcl 

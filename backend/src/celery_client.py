@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 REDIS_BROKER_DB = os.environ.get("REDIS_BROKER_DB", "1")
+REDIS_RESULT_DB = os.environ.get("REDIS_RESULT_DB", "0")
 
 
 class DrillerTaskClient:
@@ -19,7 +20,7 @@ class DrillerTaskClient:
         self.app = Celery('driller')
         self.app.conf.update(
             broker_url=f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_BROKER_DB}',
-            result_backend='redis://redis:6379/0',
+            result_backend=f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_RESULT_DB}',
             task_serializer='json',
             result_serializer='json',
             accept_content=['json'],

@@ -133,5 +133,5 @@ services:
       - app
     depends_on:
       - backend
-    expose:
-      - "80"
+    ports:
+      - "${FRONTEND_PORT}:80"

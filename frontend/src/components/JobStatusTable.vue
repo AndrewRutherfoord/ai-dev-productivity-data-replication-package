@@ -7,6 +7,7 @@
     :items-per-page="options.limit"
     show-select
     v-model="selected"
+    item-value="id"
   >
     <template v-slot:item.status="{ item }">
       <v-progress-circular
@@ -36,6 +37,22 @@
     <template v-slot:item.button="{ item }">
       <v-btn color="primary" size="small" class="mx-2" @click="emit('show-job-information', item)"
         >View</v-btn
+      >
+      <v-btn
+        v-if="getJobStatus(item) === 'failed'"
+        color="warning"
+        size="small"
+        class="mx-2"
+        @click="emit('rerun-job', item.id)"
+        >Re-run</v-btn
+      >
+      <v-btn
+        v-if="getJobStatus(item) === 'started'"
+        color="warning"
+        size="small"
+        class="mx-2"
+        @click="emit('requeue-job', item.id)"
+        >Re-queue</v-btn
       >
       <v-btn color="red-darken-2" size="small" class="mx-2" @click="emit('delete-job', item.id)"
         >Delete</v-btn
@@ -77,7 +94,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['delete-job', 'show-job-information', 'reload'])
+const emit = defineEmits(['delete-job', 'rerun-job', 'requeue-job', 'show-job-information', 'reload'])
 
 const selected = defineModel<number[]>('selected')
 
@@ -137,6 +154,8 @@ function getJobStatusColor(job: Job) {
       return 'success'
     case 'failed':
       return 'error'
+    case 'retrying':
+      return 'warning'
   }
 }
 </script>

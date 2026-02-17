@@ -13,6 +13,7 @@
           v-model:options="pendingOptions"
           v-model:selected="selected"
           @delete-job="deleteJob"
+          @requeue-job="requeueJob"
           @show-job-information="showDialog"
           :loading="loading"
           @reload="fetchPendingData"
@@ -25,6 +26,7 @@
           v-model:options="failedOptions"
           v-model:selected="selected"
           @delete-job="deleteJob"
+          @rerun-job="rerunJob"
           @show-job-information="showDialog"
           :loading="loading"
           @reload="fetchFailedData"
@@ -145,6 +147,40 @@ async function deleteSelected() {
       console.error(e)
       toast.error('Failed to delete selected jobs.')
     }
+  }
+}
+
+// Re-run
+
+async function rerunJob(id: number) {
+  try {
+    const result = await jobsRepository.rerun(id)
+    pendingJobs.value.items.push(result.data)
+    pendingJobs.value.total++
+    // Remove the original job from the failed list
+    failedJobs.value.items = failedJobs.value.items.filter((j) => j.id !== id)
+    failedJobs.value.total--
+    toast.success(`Re-queued job '${result.data.name}'.`)
+  } catch (e) {
+    console.error(e)
+    toast.error('Failed to re-run job.')
+  }
+}
+
+// Re-queue stuck jobs
+
+async function requeueJob(id: number) {
+  try {
+    const result = await jobsRepository.requeue(id)
+    // Update the job in the pending list with its new status
+    const idx = pendingJobs.value.items.findIndex((j) => j.id === id)
+    if (idx !== -1) {
+      pendingJobs.value.items[idx] = result.data
+    }
+    toast.success(`Re-queued job '${result.data.name}'.`)
+  } catch (e) {
+    console.error(e)
+    toast.error('Failed to re-queue job.')
   }
 }
 

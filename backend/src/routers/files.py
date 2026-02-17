@@ -20,9 +20,11 @@ logger.addHandler(logging.StreamHandler())
 # Also has list method for Neo4j import
 router = APIRouter()
 
-QUERIES_PATH = "../queries"
-CONFIGS_PATH = "../configs"
-DB_EXPORTS_PATH = "../neo4j_import"
+
+STORAGE_PATH = os.environ.get("STORAGE_PATH", "/data")
+QUERIES_PATH = "queries"
+CONFIGS_PATH = "configs"
+DB_EXPORTS_PATH = "neo4j_import"
 
 
 BASE_PATHS = {

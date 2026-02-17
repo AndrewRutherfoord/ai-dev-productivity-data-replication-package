@@ -6,8 +6,25 @@
       <v-btn
         v-if="selectedJobs.length > 0"
         variant="outlined"
+        prepend-icon="mdi-refresh"
+        @click="requeueSelected"
+        class="mx-1"
+        >Re-queue Selected</v-btn
+      >
+      <v-btn
+        v-if="selectedJobs.length > 0"
+        variant="outlined"
+        prepend-icon="mdi-restart"
+        @click="rerunSelected"
+        class="mx-1"
+        >Re-run Selected</v-btn
+      >
+      <v-btn
+        v-if="selectedJobs.length > 0"
+        variant="outlined"
         prepend-icon="mdi-delete"
         @click="deleteSelected"
+        class="mx-1"
         >Delete Selected</v-btn
       >
       <v-btn icon="mdi-dots-vertical" id="menu-activator"></v-btn>
@@ -49,6 +66,36 @@ async function deleteSelected() {
     } catch (e) {
       console.error(e)
       toast.error('Failed to delete selected jobs.')
+    }
+  }
+}
+
+async function requeueSelected() {
+  let ok = confirm(`Re-queue ${selectedJobs.value.length} selected jobs? Their statuses will be cleared and they will be re-added to the work queue.`)
+  if (ok) {
+    try {
+      await jobsRepository.bulkRequeue(selectedJobs.value)
+      selectedJobs.value = []
+      emit('reload')
+      toast.success('Re-queued selected jobs.')
+    } catch (e) {
+      console.error(e)
+      toast.error('Failed to re-queue selected jobs.')
+    }
+  }
+}
+
+async function rerunSelected() {
+  let ok = confirm(`Re-run ${selectedJobs.value.length} selected jobs? New jobs will be created for each.`)
+  if (ok) {
+    try {
+      await jobsRepository.bulkRerun(selectedJobs.value)
+      selectedJobs.value = []
+      emit('reload')
+      toast.success('Re-ran selected jobs.')
+    } catch (e) {
+      console.error(e)
+      toast.error('Failed to re-run selected jobs.')
     }
   }
 }

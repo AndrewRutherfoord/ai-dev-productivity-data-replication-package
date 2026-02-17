@@ -25,6 +25,11 @@
                     </template>
 </v-list-item> -->
         <v-list-item
+          title="Neo4j Settings"
+          prepend-icon="mdi-database-cog"
+          @click="emit('open-neo4j-settings')"
+        ></v-list-item>
+        <v-list-item
           title="Toggle Theme"
           prepend-icon="mdi-theme-light-dark"
           @click="toggleTheme"
@@ -36,6 +41,10 @@
 
 <script lang="ts" setup>
 import { useTheme } from 'vuetify'
+
+const emit = defineEmits<{
+  'open-neo4j-settings': []
+}>()
 
 const routes = [
   [

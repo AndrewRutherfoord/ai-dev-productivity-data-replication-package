@@ -63,10 +63,11 @@ def list_jobs(
 
     status_order = case(
         (latest_statuses.c.status == JobStatusEnum.STARTED, 1),
-        (latest_statuses.c.status == JobStatusEnum.PENDING, 2),
-        (latest_statuses.c.status == JobStatusEnum.FAILED, 3),
-        (latest_statuses.c.status == JobStatusEnum.COMPLETE, 4),
-        else_=5,
+        (latest_statuses.c.status == JobStatusEnum.RETRYING, 2),
+        (latest_statuses.c.status == JobStatusEnum.PENDING, 3),
+        (latest_statuses.c.status == JobStatusEnum.FAILED, 4),
+        (latest_statuses.c.status == JobStatusEnum.COMPLETE, 5),
+        else_=6,
     )
 
     base_statement = select(Job).join(
@@ -112,16 +113,6 @@ def list_jobs(
     return {"items": items, "total": total}
 
 
-@router.delete("/jobs/{job_id}")
-def delete_job(*, session: Session = Depends(get_session), job_id: int):
-    job = session.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    session.delete(job)
-    session.commit()
-    return Response(status_code=200)
-
-
 @router.delete("/jobs/")
 def delete_all_jobs(*, session: Session = Depends(get_session)):
     results = session.exec(select(Job))
@@ -131,12 +122,103 @@ def delete_all_jobs(*, session: Session = Depends(get_session)):
     return Response(status_code=200)
 
 
-@router.get("/jobs/{job_id}", response_model=JobDetails)
-def detail_job(*, session: Session = Depends(get_session), job_id: int):
-    job = session.get(Job, job_id)
-    if not job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return job
+# Bulk endpoints must be registered before {job_id} routes to avoid path conflicts
+@router.post("/jobs/bulk/requeue", response_model=list[JobList])
+async def bulk_requeue_jobs(
+    *,
+    session: Session = Depends(get_session),
+    job_ids: list[int],
+    request: Request,
+):
+    """Re-queue multiple stuck jobs at once."""
+    results = []
+    for job_id in job_ids:
+        job = session.get(Job, job_id)
+        if not job:
+            continue
+
+        single_job = SingleDrillConfig.model_validate(job.data)
+        single_job.job_id = job.id
+
+        # Clear all old statuses
+        for old_status in job.job_statuses:
+            session.delete(old_status)
+
+        db_job_status = JobStatus(job_id=job.id)
+        session.add(db_job_status)
+        session.commit()
+        session.refresh(db_job_status)
+
+        request.state.driller_client.enqueue_drill_job(
+            single_job.model_dump_json()
+        )
+
+        results.append(
+            JobList(
+                id=job.id,
+                name=job.name,
+                data=job.data,
+                statuses=[
+                    JobStatusOverview(
+                        status=db_job_status.status,
+                        timestamp=db_job_status.timestamp,
+                    )
+                ],
+            )
+        )
+
+    return results
+
+
+@router.post("/jobs/bulk/rerun", response_model=list[JobList])
+async def bulk_rerun_jobs(
+    *,
+    session: Session = Depends(get_session),
+    job_ids: list[int],
+    request: Request,
+):
+    """Re-run multiple failed jobs at once (creates new jobs)."""
+    results = []
+    for job_id in job_ids:
+        original_job = session.get(Job, job_id)
+        if not original_job:
+            continue
+
+        single_job = SingleDrillConfig.model_validate(original_job.data)
+
+        db_job = Job.model_validate(
+            JobCreate(name=original_job.name, data=single_job.model_dump())
+        )
+        session.add(db_job)
+        session.commit()
+        session.refresh(db_job)
+
+        single_job.job_id = db_job.id
+
+        db_job_status = JobStatus(job_id=db_job.id)
+        session.add(db_job_status)
+        session.commit()
+        session.refresh(db_job_status)
+
+        request.state.driller_client.enqueue_drill_job(
+            single_job.model_dump_json()
+        )
+
+        results.append(
+            JobList(
+                id=db_job.id,
+                name=db_job.name,
+                data=db_job.data,
+                statuses=[
+                    JobStatusOverview(
+                        status=db_job_status.status,
+                        timestamp=db_job_status.timestamp,
+                    )
+                ],
+            )
+        )
+
+    return results
 
 
 @router.post("/jobs/", response_model=list[JobList])
@@ -186,6 +268,107 @@ async def create_jobs(
             )
         )
 
-    # result = await driller_client.call(body)
     return job_list
-    # return Response(jobs_list, status_code=201)
+
+
+@router.delete("/jobs/{job_id}")
+def delete_job(*, session: Session = Depends(get_session), job_id: int):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    session.delete(job)
+    session.commit()
+    return Response(status_code=200)
+
+
+@router.get("/jobs/{job_id}", response_model=JobDetails)
+def detail_job(*, session: Session = Depends(get_session), job_id: int):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return job
+
+
+@router.post("/jobs/{job_id}/rerun", response_model=JobList)
+async def rerun_job(
+    *,
+    session: Session = Depends(get_session),
+    job_id: int,
+    request: Request,
+):
+    original_job = session.get(Job, job_id)
+    if not original_job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    single_job = SingleDrillConfig.model_validate(original_job.data)
+
+    db_job = Job.model_validate(
+        JobCreate(name=original_job.name, data=single_job.model_dump())
+    )
+    session.add(db_job)
+    session.commit()
+    session.refresh(db_job)
+
+    single_job.job_id = db_job.id
+
+    db_job_status = JobStatus(job_id=db_job.id)
+    session.add(db_job_status)
+    session.commit()
+    session.refresh(db_job_status)
+
+    task_id = request.state.driller_client.enqueue_drill_job(
+        single_job.model_dump_json()
+    )
+
+    return JobList(
+        id=db_job.id,
+        name=db_job.name,
+        data=db_job.data,
+        statuses=[
+            JobStatusOverview(
+                status=db_job_status.status, timestamp=db_job_status.timestamp
+            )
+        ],
+    )
+
+
+@router.post("/jobs/{job_id}/requeue", response_model=JobList)
+async def requeue_job(
+    *,
+    session: Session = Depends(get_session),
+    job_id: int,
+    request: Request,
+):
+    """Re-queue a stuck job (e.g. one stuck as 'started' after infrastructure failure)."""
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    single_job = SingleDrillConfig.model_validate(job.data)
+    single_job.job_id = job.id
+
+    # Clear all old statuses
+    for old_status in job.job_statuses:
+        session.delete(old_status)
+
+    # Add a fresh "pending" status
+    db_job_status = JobStatus(job_id=job.id)
+    session.add(db_job_status)
+    session.commit()
+    session.refresh(db_job_status)
+
+    # Re-enqueue to Celery
+    request.state.driller_client.enqueue_drill_job(
+        single_job.model_dump_json()
+    )
+
+    return JobList(
+        id=job.id,
+        name=job.name,
+        data=job.data,
+        statuses=[
+            JobStatusOverview(
+                status=db_job_status.status, timestamp=db_job_status.timestamp
+            )
+        ],
+    )

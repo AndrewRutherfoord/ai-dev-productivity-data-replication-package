@@ -1,7 +1,9 @@
 """Celery task definitions for drilling repositories"""
+import hashlib
 import logging
 import os
 from celery import Task
+from celery.exceptions import SoftTimeLimitExceeded
 
 from common.models.driller_config import SingleDrillConfig, RepositoryConfig
 from src.drillers.driller import RepositoryDriller
@@ -9,6 +11,7 @@ from src.drillers.neo4j_pydriller_repository_storage import RepositoryNeo4jStora
 from src.celery_app import app
 from src.cloner import clone_repository, remove_repository_clone
 from src.log_buffer import LogBuffer, LogBufferHandler
+from src.signals import send_status_update
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +24,8 @@ NEO4J_PORT = os.environ.get("NEO4J_PORT", 7687)
 NEO4J_USER = os.environ.get("NEO4J_USER", "neo4j")
 NEO4J_PASSWORD = os.environ.get("NEO4J_PASSWORD")
 REPO_CLONE_LOCATION = os.environ.get("REPO_CLONE_LOCATION", "/app/repositories")
+TASK_SOFT_TIME_LIMIT = int(os.environ.get("TASK_SOFT_TIME_LIMIT", 14400))  # 4 hours
+TASK_TIME_LIMIT = int(os.environ.get("TASK_TIME_LIMIT", 14700))  # 4 hours + 5 min buffer
 
 
 class CallbackTask(Task):
@@ -39,10 +44,11 @@ class CallbackTask(Task):
     base=CallbackTask,
     bind=True,
     max_retries=3,
-    soft_time_limit=3600,
-    time_limit=3900,
+    soft_time_limit=TASK_SOFT_TIME_LIMIT,
+    time_limit=TASK_TIME_LIMIT,
     acks_late=True,
     reject_on_worker_lost=True,
+    rate_limit='10/m',
 )
 def drill_repository(self, drill_config_json: str) -> dict:
     """
@@ -80,10 +86,16 @@ def drill_repository(self, drill_config_json: str) -> dict:
             repository.apply_defaults(drill_config.defaults)
 
         # Set path to clone or find repo
-        repo_path = f"{REPO_CLONE_LOCATION}/{repository.name}"
+        if repository.url is not None:
+            # Use hash of URL for clone path to avoid collisions with same-named repos
+            url_hash = hashlib.sha256(repository.url.encode("utf-8")).hexdigest()[:12]
+            repo_path = f"{REPO_CLONE_LOCATION}/{url_hash}"
+        else:
+            repo_path = f"{REPO_CLONE_LOCATION}/{repository.name}"
 
         # Clone repository if URL exists
         if repository.url is not None:
+            send_status_update(job_id, "started", f"Cloning repository {repository.name}...")
             clone_repository(
                 repository_url=repository.url,
                 repository_location=repo_path
@@ -107,7 +119,10 @@ def drill_repository(self, drill_config_json: str) -> dict:
         )
 
         # Drill repository
+        send_status_update(job_id, "started", f"Drilling repository {repository.name}...")
         driller.drill_repository()
+
+        send_status_update(job_id, "started", f"Processing commits for {repository.name}...")
         driller.drill_commits(
             filters=repository.filters,
             pydriller_filters=repository.pydriller,
@@ -121,6 +136,12 @@ def drill_repository(self, drill_config_json: str) -> dict:
             "message": f"Successfully drilled {repository.name}",
         }
 
+    except SoftTimeLimitExceeded:
+        job_id = drill_config.job_id if drill_config else None
+        logger.error(f"Task timed out for job {job_id} — repository too large to process within time limit")
+        # Do not retry — the repo will still be too large on the next attempt
+        raise
+
     except Exception as e:
         job_id = drill_config.job_id if drill_config else None
         logger.exception(f"Drilling failed: {e}")
@@ -131,11 +152,8 @@ def drill_repository(self, drill_config_json: str) -> dict:
             countdown = 60 * (2 ** self.request.retries)
             raise self.retry(exc=e, countdown=countdown)
 
-        return {
-            "status": "failed",
-            "job_id": job_id,
-            "message": f"Drilling failed: {str(e)}",
-        }
+        # Re-raise so Celery's task_failure signal fires and notifies the backend
+        raise
 
     finally:
         # Stop log buffer and send remaining logs
@@ -151,8 +169,12 @@ def drill_repository(self, drill_config_json: str) -> dict:
         # Delete clone if configured
         if drill_config and drill_config.repository.delete_clone:
             try:
-                repo_path = f"{REPO_CLONE_LOCATION}/{drill_config.repository.name}"
-                remove_repository_clone(repo_path)
-                logger.debug(f"Deleted cloned repository {repo_path}")
+                if drill_config.repository.url is not None:
+                    url_hash = hashlib.sha256(drill_config.repository.url.encode("utf-8")).hexdigest()[:12]
+                    cleanup_path = f"{REPO_CLONE_LOCATION}/{url_hash}"
+                else:
+                    cleanup_path = f"{REPO_CLONE_LOCATION}/{drill_config.repository.name}"
+                remove_repository_clone(cleanup_path)
+                logger.debug(f"Deleted cloned repository {cleanup_path}")
             except Exception as e:
                 logger.warning(f"Failed to delete cloned repository: {e}")

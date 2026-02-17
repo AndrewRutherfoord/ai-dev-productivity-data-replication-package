@@ -38,6 +38,7 @@ class JobStatusEnum(str, Enum):
     PENDING = "pending"
     COMPLETE = "complete"
     FAILED = "failed"
+    RETRYING = "retrying"
 
     @classmethod
     def from_string(cls, status_str):

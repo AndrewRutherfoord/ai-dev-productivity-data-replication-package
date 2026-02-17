@@ -9,15 +9,15 @@ logger = logging.getLogger(__name__)
 
 class RepositoryDataStorage(ABC):
     @abstractmethod
-    def store_repository(self, repo_name: str):
+    def store_repository(self, repo_name: str, repo_url: str):
         pass
 
     @abstractmethod
-    def store_branch(self, repo_name: str, branch_name: str):
+    def store_branch(self, repo_url: str, branch_name: str):
         pass
 
     @abstractmethod
-    def store_commit(self, repo_name: str, commit: Commit):
+    def store_commit(self, repo_url: str, commit: Commit):
         pass
 
     @abstractmethod
@@ -26,7 +26,7 @@ class RepositoryDataStorage(ABC):
 
     @abstractmethod
     def store_modified_file(
-        self, commit: Commit, file: ModifiedFile, repository_name: str, index_diff=False
+        self, commit: Commit, file: ModifiedFile, repository_url: str, index_diff=False
     ):
         pass
 
@@ -39,10 +39,10 @@ class LogRepositoryStorage(RepositoryDataStorage):
     def __init__(self):
         pass
 
-    def store_commit(self, repo_name: str, commit: Commit):
+    def store_commit(self, repo_url: str, commit: Commit):
         logger.info(
             {
-                "repository_name": repo_name,
+                "repository_url": repo_url,
                 "hash": commit.hash,
                 "message": commit.msg,
                 "author": commit.author.name,
@@ -55,8 +55,8 @@ class LogRepositoryStorage(RepositoryDataStorage):
             }
         )
 
-    def store_repository(self, repo_name):
-        logger.info(repo_name)
+    def store_repository(self, repo_name, repo_url):
+        logger.info(f"{repo_name} ({repo_url})")
 
-    def store_branch(self, repo_name, branch_name):
-        logger.info(f"Branch {branch_name} from {repo_name}.")
+    def store_branch(self, repo_url, branch_name):
+        logger.info(f"Branch {branch_name} from {repo_url}.")

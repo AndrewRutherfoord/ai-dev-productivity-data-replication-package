@@ -1,5 +1,6 @@
 import logging
 import os
+import shutil
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 logger = logging.getLogger(__name__)
@@ -21,17 +22,24 @@ def clone_repository(repository_url, repository_location):
         if os.path.exists(repository_location):
             repo = Repo(repository_location)
             if repo.remotes.origin.url == repository_url:
-                logger.info(f"Repo `{repository_url}` already cloned.")
-                return  # Repository already cloned
+                logger.info(f"Repo `{repository_url}` already cloned. Pulling latest changes.")
+                repo.remotes.origin.pull()
+                return
             else:
                 return  # Another repo at location
         Repo.clone_from(repository_url, repository_location)
 
-    except GitCommandError:
-        logger.error(
-            "Could not get Git Repository. Probably because it no longer exists."
-        )
-        raise LookupError("Repository not found on remote host.")
+    except GitCommandError as e:
+        stderr = str(e.stderr) if e.stderr else str(e)
+        if "rate limit" in stderr.lower() or "403" in stderr:
+            logger.error(f"Rate limited by remote host when cloning `{repository_url}`.")
+            raise ConnectionError(f"Rate limited by remote host: {repository_url}")
+        elif "not found" in stderr.lower() or "404" in stderr:
+            logger.error(f"Repository `{repository_url}` not found on remote host.")
+            raise LookupError(f"Repository not found: {repository_url}")
+        else:
+            logger.error(f"Git clone failed for `{repository_url}`: {stderr}")
+            raise ConnectionError(f"Git clone failed for {repository_url}: {stderr}")
     except InvalidGitRepositoryError as e:
         logger.error(
             f"Directory `{repository_location}` already exists but isn't a Git Repo."
@@ -46,7 +54,7 @@ def remove_repository_clone(repository_location):
     """Deletes a folder from a given path. Intended to be used with repositories, but is just deleting a folder."""
     try:
         if os.path.exists(repository_location):
-            os.remove(repository_location)
+            shutil.rmtree(repository_location)
     except Exception as e:
         logger.exception(e)
         raise e

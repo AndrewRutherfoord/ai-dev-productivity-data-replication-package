@@ -78,6 +78,17 @@ def task_failure_handler(sender=None, task_id=None, exception=None, args=None, *
 
 
 @signals.task_retry.connect
-def task_retry_handler(sender=None, task_id=None, reason=None, **kwargs):
-    """Log retry attempts"""
+def task_retry_handler(sender=None, task_id=None, reason=None, args=None, kwargs=None, **extra):
+    """Send 'retrying' status when task retries"""
     logger.warning(f"Task {task_id} retrying: {reason}")
+    if sender and sender.name == 'src.tasks.drill_repository' and args:
+        try:
+            drill_config_json = args[0]
+            drill_config = SingleDrillConfig.model_validate_json(drill_config_json)
+            send_status_update(
+                drill_config.job_id,
+                "retrying",
+                f"Retrying drill for {drill_config.repository.name}: {reason}"
+            )
+        except Exception as e:
+            logger.error(f"Failed to send retry status: {e}")

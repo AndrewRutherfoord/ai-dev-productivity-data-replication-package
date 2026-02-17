@@ -6,6 +6,7 @@ from celery import Celery
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
 REDIS_BROKER_DB = os.environ.get("REDIS_BROKER_DB", "1")
+REDIS_RESULT_DB = os.environ.get("REDIS_RESULT_DB", "0")
 
 # Initialize Celery app
 app = Celery('driller')
@@ -22,7 +23,7 @@ app.conf.update(
     },
 
     # Result backend (Redis)
-    result_backend='redis://redis:6379/0',
+    result_backend=f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_RESULT_DB}',
     result_expires=86400,  # 24 hours
 
     # Task settings
