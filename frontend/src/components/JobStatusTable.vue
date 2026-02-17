@@ -11,19 +11,19 @@
   >
     <template v-slot:item.status="{ item }">
       <v-progress-circular
-        v-if="getJobStatus(item) === 'started'"
+        v-if="getJobStatus(getRawJob(item)) === 'started'"
         color="green"
         indeterminate
         size="25"
         class="me-2"
       ></v-progress-circular>
-      <v-chip :color="getJobStatusColor(item)" text-color="white">
-        {{ getJobStatus(item) }}
+      <v-chip :color="getJobStatusColor(getRawJob(item))" text-color="white">
+        {{ getJobStatus(getRawJob(item)) }}
       </v-chip>
       <!-- Tooltip which shows error message if job status is failed. -->
       <v-tooltip
-        :text="getJobStatusObj(item).message"
-        v-if="getJobStatus(item) === 'failed' && 'message' in getJobStatusObj(item)"
+        :text="getJobStatusObj(getRawJob(item))?.message"
+        v-if="getJobStatus(getRawJob(item)) === 'failed' && getJobStatusObj(getRawJob(item))?.message"
         max-width="200px"
       >
         <template v-slot:activator="{ props }">
@@ -32,29 +32,29 @@
       </v-tooltip>
     </template>
     <template v-slot:item.timestamp="{ item }">
-      {{ getJobTimestamp(item) }}
+      {{ getJobTimestamp(getRawJob(item)) }}
     </template>
     <template v-slot:item.button="{ item }">
-      <v-btn color="primary" size="small" class="mx-2" @click="emit('show-job-information', item)"
+      <v-btn color="primary" size="small" class="mx-2" @click="emit('show-job-information', getRawJob(item))"
         >View</v-btn
       >
       <v-btn
-        v-if="getJobStatus(item) === 'failed'"
+        v-if="getJobStatus(getRawJob(item)) === 'failed'"
         color="warning"
         size="small"
         class="mx-2"
-        @click="emit('rerun-job', item.id)"
+        @click="emit('rerun-job', getRawJob(item).id)"
         >Re-run</v-btn
       >
       <v-btn
-        v-if="getJobStatus(item) === 'started'"
+        v-if="getJobStatus(getRawJob(item)) === 'started'"
         color="warning"
         size="small"
         class="mx-2"
-        @click="emit('requeue-job', item.id)"
+        @click="emit('requeue-job', getRawJob(item).id)"
         >Re-queue</v-btn
       >
-      <v-btn color="red-darken-2" size="small" class="mx-2" @click="emit('delete-job', item.id)"
+      <v-btn color="red-darken-2" size="small" class="mx-2" @click="emit('delete-job', getRawJob(item).id)"
         >Delete</v-btn
       >
     </template>
@@ -69,9 +69,10 @@
 </template>
 
 <script setup lang="ts">
-import type { Job, JobStatus, Pagination } from '@/repositores/JobsRepository'
+import type { Job, JobStatus } from '@/repositores/JobsRepository'
+import type { Pagination } from '@/repositores/Pagination'
 import type { PaginatedResults } from '@/repositores/Repository'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 
 const headers = [
   { title: 'Name', value: 'name' },
@@ -116,11 +117,18 @@ const page = computed(() => {
 
 // Render Functions
 
+function getRawJob(item: any): Job {
+  return item?.raw ?? item
+}
+
 function getJobStatusObj(job: Job): JobStatus | undefined {
-  if (job.statuses.length === 0) {
+  if (!Array.isArray(job.statuses) || job.statuses.length === 0) {
     return undefined
   }
-  return job.statuses.slice(-1).pop()
+
+  return job.statuses.reduce((latest, current) => {
+    return current.timestamp > latest.timestamp ? current : latest
+  })
 }
 
 function getJobStatus(job: Job) {

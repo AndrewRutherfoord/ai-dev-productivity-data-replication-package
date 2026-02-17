@@ -12,7 +12,7 @@ type status = 'failed' | 'pending' | 'complete' | 'started' | 'retrying'
 
 export interface JobStatus {
   job_id: number
-  status: status[]
+  status: status
   timestamp: string
 }
 

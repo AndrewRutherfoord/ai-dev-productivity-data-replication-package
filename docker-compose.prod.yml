@@ -112,6 +112,9 @@ services:
       NEO4J_HOST: neo4j
       NEO4J_PORT: 7687
       BACKEND_URL: http://backend:8000
+      TASK_SOFT_TIME_LIMIT: ${TASK_SOFT_TIME_LIMIT}
+      TASK_TIME_LIMIT: ${TASK_TIME_LIMIT}
+      CELERY_VISIBILITY_TIMEOUT: ${CELERY_VISIBILITY_TIMEOUT}
     volumes:
       - ./volumes/repos:/app/repositories
     depends_on:
@@ -122,7 +125,7 @@ services:
     command: >
       celery -A src.celery_app worker
       --loglevel=info
-      --concurrency=3
+      --concurrency=1
       -Q driller_queue
 
   frontend:
@@ -131,7 +134,5 @@ services:
     restart: unless-stopped
     networks:
       - app
-    depends_on:
-      - backend
     ports:
       - "${FRONTEND_PORT}:80"
