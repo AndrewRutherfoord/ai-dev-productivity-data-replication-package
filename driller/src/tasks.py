@@ -142,6 +142,14 @@ def drill_repository(self, drill_config_json: str) -> dict:
         # Do not retry — the repo will still be too large on the next attempt
         raise
 
+    except LookupError as e:
+        job_id = drill_config.job_id if drill_config else None
+        logger.error(f"Repository not found for job {job_id}: {e}")
+
+        # Do not retry if the repo url is not found
+        self.max_retries = 0
+        raise self.retry(exc=e, countdown=0)
+
     except Exception as e:
         job_id = drill_config.job_id if drill_config else None
         logger.exception(f"Drilling failed: {e}")

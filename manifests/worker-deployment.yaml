@@ -1,0 +1,70 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: neorepro-driller-worker
+  namespace: neorepro
+  labels:
+    app: neorepro
+    component: driller-worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: neorepro
+      component: driller-worker
+  template:
+    metadata:
+      labels:
+        app: neorepro
+        component: driller-worker
+    spec:
+      containers:
+        - name: driller-worker
+          image: ghcr.io/andrewrutherfoord/neorepro-msr-tool/driller:latest
+          imagePullPolicy: Always
+          command:
+            - celery
+            - -A
+            - src.celery_app
+            - worker
+            - --loglevel=info
+            - --pool=prefork
+            - --concurrency=1
+            - --max-tasks-per-child=5
+            - -Q
+            - driller_queue
+            - --events
+          envFrom:
+            - configMapRef:
+                name: neorepro-driller-worker-env
+          env:
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-auth
+                  key: neo4j-password
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: redis-auth
+                  key: redis-password
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+          volumeMounts:
+            - name: repo-data
+              mountPath: /app/data/repositories
+
+          securityContext:
+            capabilities:
+              add:
+                - SYS_PTRACE
+      volumes:
+        - name: repo-data
+          emptyDir:
+            sizeLimit: 10Gi

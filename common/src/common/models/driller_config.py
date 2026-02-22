@@ -79,6 +79,8 @@ class DefaultsConfig(BaseModel):
     delete_clone: bool = False
     index_file_modifications: bool = False
     index_file_diff: bool = False
+    compute_dmm: bool = False
+    skip_existing_commits: bool = True
     pydriller: Optional[PydrillerConfig] = None
     filters: Optional[FiltersConfig] = None
 
@@ -91,6 +93,8 @@ class RepositoryConfig(DefaultsConfig):
     delete_clone: Optional[bool] = None
     index_file_modifications: Optional[bool] = None
     index_file_diff: Optional[bool] = None
+    compute_dmm: Optional[bool] = None
+    skip_existing_commits: Optional[bool] = None
 
     def apply_defaults(self, defaults: DefaultsConfig):
         """Applies the defaults to the repository config. If value is set to None, it will be set to the default value (if one exists).
@@ -104,6 +108,10 @@ class RepositoryConfig(DefaultsConfig):
             self.index_file_modifications = defaults.index_file_modifications
         if self.index_file_diff is None:
             self.index_file_diff = defaults.index_file_diff
+        if self.compute_dmm is None:
+            self.compute_dmm = defaults.compute_dmm
+        if self.skip_existing_commits is None:
+            self.skip_existing_commits = defaults.skip_existing_commits
 
         if self.pydriller is None:
             self.pydriller = defaults.pydriller

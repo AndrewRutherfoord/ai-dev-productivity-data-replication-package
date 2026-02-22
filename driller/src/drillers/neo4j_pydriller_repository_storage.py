@@ -33,14 +33,26 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             session.run(
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (r:Repository) REQUIRE r.url IS UNIQUE"
             )
-            # session.run(
-            #     "CREATE CONSTRAINT IF NOT EXISTS FOR (b:Branch) REQUIRE b.hash IS UNIQUE"
-            # )
+
             session.run(
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (d:Developer) REQUIRE d.email IS UNIQUE"
             )
+
             session.run(
                 "CREATE CONSTRAINT IF NOT EXISTS FOR (c:Commit) REQUIRE c.hash IS UNIQUE"
+            )
+
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (f:File) REQUIRE f.hash IS UNIQUE"
+            )
+
+            session.run(
+                "CREATE CONSTRAINT IF NOT EXISTS FOR (b:Branch) REQUIRE b.hash IS UNIQUE"
+            )
+
+            # Speed up queries that filter by change type
+            session.run(
+                "CREATE INDEX IF NOT EXISTS FOR ()-[r:MODIFIED]-() ON (r.change_type);"
             )
 
     def store_repository(self, repo_name, repo_url):
@@ -92,7 +104,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             },
         )
 
-    def store_commit(self, repo_url, commit: Commit):
+    def store_commit(self, repo_url, commit: Commit, compute_dmm: bool = False):
         """Stores an instance of a commit and links it to the author and it's parent commit."""
 
         # Create or Update commit and link it to the developer as an `AUTHOR` relationship.
@@ -109,9 +121,9 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
                 "message": commit.msg,
                 "author": commit.author.name,
                 "date": commit.author_date.strftime("%Y-%m-%d %H:%M:%S"),
-                "dmm_unit_size": commit.dmm_unit_size,
-                "dmm_unit_complexity": commit.dmm_unit_complexity,
-                "dmm_unit_interfacing": commit.dmm_unit_interfacing,
+                "dmm_unit_size": commit.dmm_unit_size if compute_dmm else None,
+                "dmm_unit_complexity": commit.dmm_unit_complexity if compute_dmm else None,
+                "dmm_unit_interfacing": commit.dmm_unit_interfacing if compute_dmm else None,
                 "merge": commit.merge,
             },
         )
@@ -141,7 +153,12 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             )
 
     def store_modified_file(
-        self, commit: Commit, file: ModifiedFile, repository_url: str, index_diff=False
+        self,
+        commit: Commit,
+        file: ModifiedFile,
+        repository_url: str,
+        index_diff=False,
+        include_metrics: bool = True,
     ):
         """Stores a file modification and links it to the commit.
         If the file change is a RENAME, creates a `RENAMED_TO` relation from the old file node.
@@ -166,6 +183,10 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             r.added_lines = $added_lines, r.deleted_lines = $deleted_lines,
             r.nloc = $nloc, r.complexity = $complexity, r.token_count = $token_count"""
 
+        nloc = file.nloc if include_metrics else None
+        complexity = file.complexity if include_metrics else None
+        token_count = file.token_count if include_metrics else None
+
         values = {
             "commit_hash": commit.hash,
             "file_hash": hashlib.sha224(
@@ -178,9 +199,9 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
             "change_type": file.change_type.name,  # ENUM
             "added_lines": file.added_lines,
             "deleted_lines": file.deleted_lines,
-            "nloc": file.nloc,
-            "complexity": file.complexity,
-            "token_count": file.token_count,
+            "nloc": nloc,
+            "complexity": complexity,
+            "token_count": token_count,
         }
 
         if index_diff:
@@ -194,7 +215,7 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
         # TODO: Other fields that can be used: diff, diff_parsed, source_code, source_code_before, methods, methods_before, changed_methods,
 
         # If the file change is a RENAME, create a `RENAMED_TO` relation from the old file node.
-        if file.change_type.name == "RENAME":
+        if file.change_type.name == "RENAME" and file.old_path:
             old_name = file.old_path.split("/")[-1]
             old_file_hash = hashlib.sha224(
                 str(f"{old_name}:{repository_url}").encode("utf-8")
@@ -208,3 +229,25 @@ class RepositoryNeo4jStorage(Neo4jStorage, RepositoryDataStorage):
                 "MERGE (old)-[:RENAMED_TO]->(new)",
                 {"old_hash": old_file_hash, "new_hash": new_file_hash},
             )
+
+    def commit_exists(self, commit_hash: str) -> bool:
+        """Returns True if a Commit node with the given hash already exists in the database."""
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (c:Commit {hash: $hash}) RETURN count(c) > 0 AS exists",
+                {"hash": commit_hash},
+            )
+            record = result.single()
+            return record["exists"] if record else False
+
+    def commit_has_modifications(self, commit_hash: str, expected_count: int) -> bool:
+        """Returns True if the stored MODIFIED relationship count matches expected_count.
+        This detects partially-written commits where the job died mid-way through file indexing.
+        """
+        with self.driver.session() as session:
+            result = session.run(
+                "MATCH (c:Commit {hash: $hash})-[:MODIFIED]->() RETURN count(*) AS n",
+                {"hash": commit_hash},
+            )
+            record = result.single()
+            return record["n"] == expected_count if record else False

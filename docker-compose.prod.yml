@@ -98,8 +98,16 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/healthcheck').read()"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
     expose:
       - "8000"
+    ports:
+      - "${BACKEND_PORT}:8000"
 
   driller-worker:
     image: ghcr.io/andrewrutherfoord/neorepro-msr-tool/driller:latest
@@ -136,5 +144,8 @@ services:
     restart: unless-stopped
     networks:
       - app
+    depends_on:
+      backend:
+        condition: service_healthy
     ports:
       - "${FRONTEND_PORT}:80"

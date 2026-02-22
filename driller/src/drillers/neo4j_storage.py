@@ -1,4 +1,6 @@
 import logging
+import os
+import time
 
 from neo4j import GraphDatabase
 from neo4j.exceptions import TransientError, ClientError
@@ -21,6 +23,7 @@ class Neo4jStorage:
         self.driver = GraphDatabase.driver(uri, auth=(user, password))
         self.batch_size = batch_size
         self.batch = []
+        self.query_timeout_seconds = int(os.environ.get("NEO4J_QUERY_TIMEOUT_SECONDS", "60"))
 
     def connect(self):
         """
@@ -66,18 +69,34 @@ class Neo4jStorage:
         If Deadlock enountered it will try to re-run the transaction. If fails 3 times, throws the error.
         """
         try_again = 3
+        operations_count = len(self.batch)
+        if operations_count == 0:
+            return
+
         while try_again > 0:
-            logger.debug("Processing Batch")
+            started_at = time.monotonic()
+            logger.info(
+                "Processing batch with %d operations (attempt %d/3, timeout=%ss)",
+                operations_count,
+                4 - try_again,
+                self.query_timeout_seconds,
+            )
             try:
                 if self.batch:
                     with self.driver.session() as session:
                         with session.begin_transaction() as tx:
-                            for operation in self.batch:
-                                tx.run(*operation)
+                            for query, params in self.batch:
+                                tx.run(query, params, timeout=self.query_timeout_seconds)
                     self.batch = []
+                    elapsed = time.monotonic() - started_at
+                    logger.info("Batch processed in %.2fs", elapsed)
                 return
             except TransientError as e:
-                logger.exception("Encountered a TransientError", e)
+                elapsed = time.monotonic() - started_at
+                logger.exception(
+                    "Encountered a TransientError while processing batch after %.2fs",
+                    elapsed,
+                )
                 try_again -= 1
                 if try_again == 0:
                     raise e
