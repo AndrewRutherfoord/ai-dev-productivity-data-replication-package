@@ -1,0 +1,290 @@
+[
+  {
+    "name": "AXorcist",
+    "url": "https://github.com/steipete/AXorcist.git"
+  },
+  {
+    "name": "gitpod",
+    "url": "https://github.com/gitpod-io/gitpod.git"
+  },
+  {
+    "name": "website",
+    "url": "https://github.com/exercism/website.git"
+  },
+  {
+    "name": "wigglystuff",
+    "url": "https://github.com/koaning/wigglystuff.git"
+  },
+  {
+    "name": "fizzy",
+    "url": "https://github.com/basecamp/fizzy.git"
+  },
+  {
+    "name": "sentry-cocoa",
+    "url": "https://github.com/getsentry/sentry-cocoa.git"
+  },
+  {
+    "name": "agentic-flow",
+    "url": "https://github.com/ruvnet/agentic-flow.git"
+  },
+  {
+    "name": "gitpod",
+    "url": "https://github.com/gitpod-io/gitpod.git"
+  },
+  {
+    "name": "foam",
+    "url": "https://github.com/foambubble/foam.git"
+  },
+  {
+    "name": "website",
+    "url": "https://github.com/exercism/website.git"
+  },
+  {
+    "name": "openclaw",
+    "url": "https://github.com/openclaw/openclaw.git"
+  },
+  {
+    "name": "dev-tools",
+    "url": "https://github.com/the-dev-tools/dev-tools.git"
+  },
+  {
+    "name": "clawdbot",
+    "url": "https://github.com/harleycoops/clawdbot.git"
+  },
+  {
+    "name": "mongo",
+    "url": "https://github.com/mongodb/mongo.git"
+  },
+  {
+    "name": "arcadedb",
+    "url": "https://github.com/arcadedata/arcadedb.git"
+  },
+  {
+    "name": "stream-chat-react-native",
+    "url": "https://github.com/GetStream/stream-chat-react-native.git"
+  },
+  {
+    "name": "best-practices-badge",
+    "url": "https://github.com/coreinfrastructure/best-practices-badge.git"
+  },
+  {
+    "name": "oh-my-claudecode",
+    "url": "https://github.com/yeachan-heo/oh-my-claudecode.git"
+  },
+  {
+    "name": "gondolin",
+    "url": "https://github.com/earendil-works/gondolin.git"
+  },
+  {
+    "name": "claude-mem",
+    "url": "https://github.com/thedotmack/claude-mem.git"
+  },
+  {
+    "name": "stirling-pdf",
+    "url": "https://github.com/stirling-tools/stirling-pdf.git"
+  },
+  {
+    "name": "console",
+    "url": "https://github.com/oxidecomputer/console.git"
+  },
+  {
+    "name": "stirling-pdf",
+    "url": "https://github.com/stirling-tools/stirling-pdf.git"
+  },
+  {
+    "name": "modus-icons",
+    "url": "https://github.com/trimble-oss/modus-icons.git"
+  },
+  {
+    "name": "mautic",
+    "url": "https://github.com/mautic/mautic.git"
+  },
+  {
+    "name": "openclaw-mobile",
+    "url": "https://github.com/howardleegeek/openclaw-mobile.git"
+  },
+  {
+    "name": "fizzy",
+    "url": "https://github.com/sreenu321/fizzy.git"
+  },
+  {
+    "name": "starrocks",
+    "url": "https://github.com/starrocks/starrocks.git"
+  },
+  {
+    "name": "zenml",
+    "url": "https://github.com/zenml-io/zenml.git"
+  },
+  {
+    "name": "youtube-study-space",
+    "url": "https://github.com/kani3camp/youtube-study-space.git"
+  },
+  {
+    "name": "cryptoclaw",
+    "url": "https://github.com/termix-official/cryptoclaw.git"
+  },
+  {
+    "name": "payload",
+    "url": "https://github.com/payloadcms/payload.git"
+  },
+  {
+    "name": "camunda",
+    "url": "https://github.com/camunda/camunda.git"
+  },
+  {
+    "name": "publicsuffix-ruby",
+    "url": "https://github.com/weppos/publicsuffix-ruby.git"
+  },
+  {
+    "name": "drawdata",
+    "url": "https://github.com/koaning/drawdata.git"
+  },
+  {
+    "name": "serverless",
+    "url": "https://github.com/serverless/serverless.git"
+  },
+  {
+    "name": "foam",
+    "url": "https://github.com/foambubble/foam.git"
+  },
+  {
+    "name": "dev3000",
+    "url": "https://github.com/vercel-labs/dev3000.git"
+  },
+  {
+    "name": "clawdbot",
+    "url": "https://github.com/clawdbot/clawdbot.git"
+  },
+  {
+    "name": "claude-mem",
+    "url": "https://github.com/thedotmack/claude-mem.git"
+  },
+  {
+    "name": "mautic",
+    "url": "https://github.com/mautic/mautic.git"
+  },
+  {
+    "name": "browser-operator-core",
+    "url": "https://github.com/browseroperator/browser-operator-core.git"
+  },
+  {
+    "name": "best-practices-badge",
+    "url": "https://github.com/coreinfrastructure/best-practices-badge.git"
+  },
+  {
+    "name": "backend.ai",
+    "url": "https://github.com/lablup/backend.ai.git"
+  },
+  {
+    "name": "feed-flow",
+    "url": "https://github.com/prof18/feed-flow.git"
+  },
+  {
+    "name": "ravendb",
+    "url": "https://github.com/ravendb/ravendb.git"
+  },
+  {
+    "name": "multicloudj",
+    "url": "https://github.com/salesforce/multicloudj.git"
+  },
+  {
+    "name": "shardingsphere",
+    "url": "https://github.com/apache/shardingsphere.git"
+  },
+  {
+    "name": "swarm",
+    "url": "https://github.com/parruda/swarm.git"
+  },
+  {
+    "name": "dev-tools",
+    "url": "https://github.com/the-dev-tools/dev-tools.git"
+  },
+  {
+    "name": "mongo",
+    "url": "https://github.com/mongodb/mongo.git"
+  },
+  {
+    "name": "arcadedb",
+    "url": "https://github.com/arcadedata/arcadedb.git"
+  },
+  {
+    "name": "bun",
+    "url": "https://github.com/oven-sh/bun.git"
+  },
+  {
+    "name": "stream-chat-react-native",
+    "url": "https://github.com/GetStream/stream-chat-react-native.git"
+  },
+  {
+    "name": "inference",
+    "url": "https://github.com/roboflow/inference.git"
+  },
+  {
+    "name": "arcadedb",
+    "url": "https://github.com/arcadedata/arcadedb.git"
+  },
+  {
+    "name": "dev-tools",
+    "url": "https://github.com/the-dev-tools/dev-tools.git"
+  },
+  {
+    "name": "website",
+    "url": "https://github.com/exercism/website.git"
+  },
+  {
+    "name": "best-practices-badge",
+    "url": "https://github.com/coreinfrastructure/best-practices-badge.git"
+  },
+  {
+    "name": "oh-my-claudecode",
+    "url": "https://github.com/yeachan-heo/oh-my-claudecode.git"
+  },
+  {
+    "name": "openclaw",
+    "url": "https://github.com/openclaw/openclaw.git"
+  },
+  {
+    "name": "foam",
+    "url": "https://github.com/foambubble/foam.git"
+  },
+  {
+    "name": "manyfold",
+    "url": "https://github.com/manyfold3d/manyfold.git"
+  },
+  {
+    "name": "perfetto",
+    "url": "https://github.com/google/perfetto.git"
+  },
+  {
+    "name": "positron",
+    "url": "https://github.com/posit-dev/positron.git"
+  },
+  {
+    "name": "mongo",
+    "url": "https://github.com/mongodb/mongo.git"
+  },
+  {
+    "name": "humanlayer",
+    "url": "https://github.com/humanlayer/humanlayer.git"
+  },
+  {
+    "name": "mainsail",
+    "url": "https://github.com/mainsail-crew/mainsail.git"
+  },
+  {
+    "name": "social-embed",
+    "url": "https://github.com/social-embed/social-embed.git"
+  },
+  {
+    "name": "fizzy",
+    "url": "https://github.com/basecamp/fizzy.git"
+  },
+  {
+    "name": "x",
+    "url": "https://github.com/Xe/x.git"
+  },
+  {
+    "name": "gitpod",
+    "url": "https://github.com/gitpod-io/gitpod.git"
+  }
+]
