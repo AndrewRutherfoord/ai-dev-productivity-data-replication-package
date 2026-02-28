@@ -237,7 +237,7 @@ def get_artifact_creation_date(repo, lookup: dict[tuple[str, str], str]) -> str 
 
 # get commit tied to artifact creation date per repo and aggregate it in weeks before and after artifact creation
 # plot median and iqr across repos per week and plot coverage of repos with data in the respective weeks
-def chart_event_aligned_commit_frequency(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
+def chart_event_aligned_commit_frequency_week(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     
     from interact_with_neo4j import iter_repos
 
@@ -265,9 +265,9 @@ def chart_event_aligned_commit_frequency(weeks_before, weeks_after, csv_path: st
 
         df = load_df(query)
         if df.empty:
-            print("No data returned for artifact-aligned commit frequency.")
+            print("No data returned for artifact aligned commit frequency.")
             return
-        
+        # only include repos with at least 1 commit in a week
         df["commits_in_week"] = pd.to_numeric(df["commits_in_week"], errors="coerce").fillna(0)
         df["week_offset"] = pd.to_numeric(df["week_offset"], errors="coerce").astype(int)
         df["repo_key"] = f"{repo.url}::{repo.branch}"
@@ -301,7 +301,7 @@ def chart_event_aligned_commit_frequency(weeks_before, weeks_after, csv_path: st
     plt.xlabel("Weeks relative to artifact creation (week 0 is creation week)")
     plt.ylabel("Commits per repo per week")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_median_iqr.png")
+    plt.savefig("artifact_aligned_commit_frequency_median_iqr_week.png")
 
     # plot coverage, so how many repos contribute with data per week
     plt.figure(figsize=(10, 3.2))
@@ -311,7 +311,86 @@ def chart_event_aligned_commit_frequency(weeks_before, weeks_after, csv_path: st
     plt.xlabel("Weeks relative to artifact creation")
     plt.ylabel("Week repo observations")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_coverage.png")
+    plt.savefig("artifact_aligned_commit_frequency_coverage_week.png")
+
+
+# get commit tied to artifact creation date per repo and aggregate it in months before and after artifact creation
+# plot median and iqr across repos per month and plot coverage of repos with data in the respective months
+def chart_event_aligned_commit_frequency_month(months_before, months_after, csv_path: str = ARTIFACT_CSV):
+    
+    from interact_with_neo4j import iter_repos
+
+    lookup = artifact_date_lookup(csv_path)
+
+    rows = []
+
+    # get artifact creation date for each repo
+    for repo in iter_repos():
+        created_at = get_artifact_creation_date(repo, lookup)
+        if not created_at:
+            continue
+
+        # get commits in respective time window around artifact creation date
+        query = f"""
+        MATCH (r:Repository {{url: "{repo.url}"}})<-[:PART_OF]-(b:Branch {{name: "{repo.branch}"}})
+        MATCH (b)<-[:IN_BRANCH]-(c:Commit)
+        WHERE c.date IS NOT NULL
+        WITH datetime("{created_at}") AS special_created_at, datetime(replace(c.date, ' ', 'T')) AS commit_dt
+        WITH (commit_dt.year - special_created_at.year)*12 + (commit_dt.month - special_created_at.month) AS month_offset
+        WHERE month_offset >= -{months_before} AND month_offset <= {months_after}
+        RETURN toInteger(month_offset) AS month_offset, count(*) AS commits_in_month
+        ORDER BY month_offset
+        """
+
+        df = load_df(query)
+        if df.empty:
+            print("No data returned for artifact aligned commit frequency.")
+            return
+        # only include repos with at least 1 commit in a month
+        df["commits_in_month"] = pd.to_numeric(df["commits_in_month"], errors="coerce").fillna(0)
+        df["month_offset"] = pd.to_numeric(df["month_offset"], errors="coerce").astype(int)
+        df["repo_key"] = f"{repo.url}::{repo.branch}"
+        rows.append(df)
+    
+    if not rows:
+        print("No data collected for artifact aligned commit frequency")
+        return
+
+    all_df = pd.concat(rows, ignore_index=True)
+
+    # aggregate across repos per month (iqr and median)
+    grouped = all_df.groupby("month_offset")["commits_in_month"]
+    stats = grouped.agg(
+        median="median",
+        q1=lambda x: x.quantile(0.25),
+        q3=lambda x: x.quantile(0.75),
+        repos="count"   # number of repo per month observations
+    ).reset_index()
+
+    # add missing months with 0 commits
+    total_months = pd.DataFrame({"month_offset": list(range(-months_before, months_after+1))})
+    stats = total_months.merge(stats, on="month_offset", how="left").fillna({"median": 0, "q1": 0, "q3": 0, "repos": 0})
+
+    # plot median with iqr band
+    plt.figure(figsize=(10, 4))
+    plt.plot(stats["month_offset"], stats["median"], marker="o", linewidth=1)
+    plt.fill_between(stats["month_offset"], stats["q1"], stats["q3"], alpha=0.2)
+    plt.axvline(0, linestyle="--")
+    plt.title("Artifact creation-aligned commit frequency (median +- iqr across repos)")
+    plt.xlabel("Months relative to artifact creation (month 0 is creation month)")
+    plt.ylabel("Commits per repo per month")
+    plt.tight_layout()
+    plt.savefig("artifact_aligned_commit_frequency_median_iqr_month.png")
+
+    # plot coverage, so how many repos contribute with data per month
+    plt.figure(figsize=(10, 3.2))
+    plt.plot(stats["month_offset"], stats["repos"], marker="o", linewidth=1)
+    plt.axvline(0, linestyle="--")
+    plt.title("Repo coverage per relative month (repos with data in respective month)")
+    plt.xlabel("Months relative to artifact creation")
+    plt.ylabel("Month repo observations")
+    plt.tight_layout()
+    plt.savefig("artifact_aligned_commit_frequency_coverage_month.png")
 
 
 if __name__ == "__main__":
@@ -320,4 +399,5 @@ if __name__ == "__main__":
     chart_commits_per_project()
     chart_artifact_creation()
     chart_before_after_commits()
-    chart_event_aligned_commit_frequency(weeks_before=30, weeks_after=30) # change number of weeks if necessary
+    chart_event_aligned_commit_frequency_week(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV) # change number of weeks if necessary
+    chart_event_aligned_commit_frequency_month(months_before=3, months_after=3, csv_path=ARTIFACT_CSV) # change number of months if necessary
