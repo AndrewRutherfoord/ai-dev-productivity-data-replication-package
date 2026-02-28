@@ -18,6 +18,7 @@ HOST = "100.65.19.90"
 URI = f"neo4j://{HOST}:7687"
 USER = "neo4j"
 PASSWORD = "neo4j123"
+ARTIFACT_CSV = "agents_claude_artifact_creations.csv"
 
 date_format = "yyyy-MM-dd HH:mm:ss"
 
@@ -208,9 +209,115 @@ def chart_before_after_commits():
     plt.tight_layout()
     plt.savefig("commits_before_after_ratio.png")
 
+
+# create a lookup from the csv (url, branch)
+def artifact_date_lookup(csv_path: str = ARTIFACT_CSV) -> dict[tuple[str, str], str]:
+
+    df = pd.read_csv(csv_path)
+    df = df.dropna(subset=["url", "branch", "artifact_creation_date"]).copy()
+    df["artifact_creation_date"] = pd.to_datetime(df["artifact_creation_date"], errors="coerce")
+    df = df.dropna(subset=["artifact_creation_date"])
+
+    df = (df.groupby(["url", "branch"], as_index=False)["artifact_creation_date"].min())
+
+    df["iso"] = df["artifact_creation_date"].dt.strftime("%Y-%m-%dT%H:%M:%S")
+
+    return {(row["url"], row["branch"]): row["iso"] for _, row in df.iterrows()}
+
+
+# get artifact creation date from specific repo
+def get_artifact_creation_date(repo, lookup: dict[tuple[str, str], str]) -> str | None:
+
+    key = (repo.url, repo.branch)
+    if key in lookup:
+        return lookup[key]
+    
+    return None
+
+
+# get commit tied to artifact creation date per repo and aggregate it in weeks before and after artifact creation
+# plot median and iqr across repos per week and plot coverage of repos with data in the respective weeks
+def chart_event_aligned_commit_frequency(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
+    
+    from interact_with_neo4j import iter_repos
+
+    lookup = artifact_date_lookup(csv_path)
+
+    rows = []
+
+    # get artifact creation date for each repo
+    for repo in iter_repos():
+        created_at = get_artifact_creation_date(repo, lookup)
+        if not created_at:
+            continue
+
+        # get commits in respective time window around artifact creation date
+        query = f"""
+        MATCH (r:Repository {{url: "{repo.url}"}})<-[:PART_OF]-(b:Branch {{name: "{repo.branch}"}})
+        MATCH (b)<-[:IN_BRANCH]-(c:Commit)
+        WHERE c.date IS NOT NULL
+        WITH datetime("{created_at}") AS special_created_at, datetime(replace(c.date, ' ', 'T')) AS commit_dt
+        WITH duration.inDays(special_created_at, commit_dt).days AS day_offset
+        WHERE day_offset >= -{weeks_before}*7 AND day_offset <= {weeks_after}*7
+        RETURN toInteger(floor(day_offset/7.0)) AS week_offset, count(*) AS commits_in_week
+        ORDER BY week_offset
+        """
+
+        df = load_df(query)
+        if df.empty:
+            print("No data returned for artifact-aligned commit frequency.")
+            return
+        
+        df["commits_in_week"] = pd.to_numeric(df["commits_in_week"], errors="coerce").fillna(0)
+        df["week_offset"] = pd.to_numeric(df["week_offset"], errors="coerce").astype(int)
+        df["repo_key"] = f"{repo.url}::{repo.branch}"
+        rows.append(df)
+    
+    if not rows:
+        print("No data collected for artifact aligned commit frequency")
+        return
+
+    all_df = pd.concat(rows, ignore_index=True)
+
+    # aggregate across repos per week (iqr and median)
+    grouped = all_df.groupby("week_offset")["commits_in_week"]
+    stats = grouped.agg(
+        median="median",
+        q1=lambda x: x.quantile(0.25),
+        q3=lambda x: x.quantile(0.75),
+        repos="count"   # number of repo per week observations
+    ).reset_index()
+
+    # add missing weeks with 0 commits
+    total_weeks = pd.DataFrame({"week_offset": list(range(-weeks_before, weeks_after+1))})
+    stats = total_weeks.merge(stats, on="week_offset", how="left").fillna({"median": 0, "q1": 0, "q3": 0, "repos": 0})
+
+    # plot median with iqr band
+    plt.figure(figsize=(10, 4))
+    plt.plot(stats["week_offset"], stats["median"], marker="o", linewidth=1)
+    plt.fill_between(stats["week_offset"], stats["q1"], stats["q3"], alpha=0.2)
+    plt.axvline(0, linestyle="--")
+    plt.title("Artifact creation-aligned commit frequency (median +- iqr across repos)")
+    plt.xlabel("Weeks relative to artifact creation (week 0 is creation week)")
+    plt.ylabel("Commits per repo per week")
+    plt.tight_layout()
+    plt.savefig("artifact_aligned_commit_frequency_median_iqr.png")
+
+    # plot coverage, so how many repos contribute with data per week
+    plt.figure(figsize=(10, 3.2))
+    plt.plot(stats["week_offset"], stats["repos"], marker="o", linewidth=1)
+    plt.axvline(0, linestyle="--")
+    plt.title("Repo coverage per relative week (repos with data in respective week)")
+    plt.xlabel("Weeks relative to artifact creation")
+    plt.ylabel("Week repo observations")
+    plt.tight_layout()
+    plt.savefig("artifact_aligned_commit_frequency_coverage.png")
+
+
 if __name__ == "__main__":
     chart_repositories_per_year()
     chart_commits_per_year()
     chart_commits_per_project()
     chart_artifact_creation()
     chart_before_after_commits()
+    chart_event_aligned_commit_frequency(weeks_before=30, weeks_after=30) # change number of weeks if necessary
