@@ -12,7 +12,7 @@ Generates:
 from neo4j import GraphDatabase
 import pandas as pd
 import matplotlib.pyplot as plt
-from typing import Any, cast
+from typing import Any, cast, Optional
 
 HOST = "100.65.19.90"
 URI = f"neo4j://{HOST}:7687"
@@ -226,7 +226,7 @@ def artifact_date_lookup(csv_path: str = ARTIFACT_CSV) -> dict[tuple[str, str], 
 
 
 # get artifact creation date from specific repo
-def get_artifact_creation_date(repo, lookup: dict[tuple[str, str], str]) -> str | None:
+def get_artifact_creation_date(repo, lookup: dict[tuple[str, str], str]) -> Optional[str]:
 
     key = (repo.url, repo.branch)
     if key in lookup:
@@ -393,6 +393,86 @@ def chart_event_aligned_commit_frequency_month(months_before, months_after, csv_
     plt.savefig("artifact_aligned_commit_frequency_coverage_month.png")
 
 
+def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
+   
+    from interact_with_neo4j import iter_repos
+
+    lookup = artifact_date_lookup(csv_path)
+
+    rows = []
+
+    # get artifact creation date for each repo
+    for repo in iter_repos():
+        created_at = get_artifact_creation_date(repo, lookup)
+        if not created_at:
+            continue
+
+        # get LOC per week in window around artifact creation date
+        query = f"""
+        MATCH (r:Repository {{url: "{repo.url}"}})<-[:PART_OF]-(b:Branch {{name: "{repo.branch}"}})
+        MATCH (b)<-[:IN_BRANCH]-(c:Commit)-[m:MODIFIED]->(:File)
+        WHERE c.date IS NOT NULL
+
+        WITH datetime("{created_at}") AS special_created_at,
+            datetime(replace(c.date, ' ', 'T')) AS commit_dt,
+            coalesce(toInteger(m.added_lines),0) + coalesce(toInteger(m.deleted_lines),0) AS file_loc
+
+        // sum file LOC per commit and compute day offset relative to artifact
+        WITH special_created_at,
+            commit_dt,
+            sum(file_loc) AS commit_loc,
+            duration.inDays(special_created_at, commit_dt).days AS day_offset
+
+        // restrict to symmetric window
+        WHERE day_offset >= -{weeks_before}*7 AND day_offset <= {weeks_after}*7
+
+        // aggregate into week bins
+        RETURN toInteger(floor(day_offset/7.0)) AS week_offset,
+            sum(commit_loc) AS loc_in_week
+        ORDER BY week_offset
+        """
+
+        df = load_df(query)
+        if df.empty:
+            print(f"No data returned for repo {repo.url}::{repo.branch} - skipping.")
+            continue
+
+        df["loc_in_week"] = pd.to_numeric(df["loc_in_week"], errors="coerce").fillna(0)
+        df["week_offset"] = pd.to_numeric(df["week_offset"], errors="coerce").astype(int)
+        df["repo_key"] = f"{repo.url}::{repo.branch}"
+        rows.append(df)
+   
+    if not rows:
+        print("No data collected for artifact aligned commit frequency")
+        return
+
+    all_df = pd.concat(rows, ignore_index=True)
+
+    # aggregate LOC across repos per week (iqr and median)
+    grouped = all_df.groupby("week_offset")["loc_in_week"]
+    stats = grouped.agg(
+        median="median",
+        q1=lambda x: x.quantile(0.25),
+        q3=lambda x: x.quantile(0.75),
+        repos="count"   # number of repo per week observations
+    ).reset_index()
+
+    # add missing weeks with 0 loc
+    total_weeks = pd.DataFrame({"week_offset": list(range(-weeks_before, weeks_after+1))})
+    stats = total_weeks.merge(stats, on="week_offset", how="left").fillna({"median": 0, "q1": 0, "q3": 0, "repos": 0})
+
+    # plot median with iqr band
+    plt.figure(figsize=(10, 4))
+    plt.plot(stats["week_offset"], stats["median"], marker="o", linewidth=1)
+    plt.fill_between(stats["week_offset"], stats["q1"], stats["q3"], alpha=0.2)
+    plt.axvline(0, linestyle="--")
+    plt.title("Added + Removed LOC per week")
+    plt.xlabel("Weeks relative to artifact creation")
+    plt.ylabel("LOC per repo per week")
+    plt.tight_layout()
+    plt.savefig("artifact_aligned_loc_median_iqr.png")
+
+
 if __name__ == "__main__":
     chart_repositories_per_year()
     chart_commits_per_year()
@@ -401,3 +481,4 @@ if __name__ == "__main__":
     chart_before_after_commits()
     chart_event_aligned_commit_frequency_week(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV) # change number of weeks if necessary
     chart_event_aligned_commit_frequency_month(months_before=3, months_after=3, csv_path=ARTIFACT_CSV) # change number of months if necessary
+    chart_commit_loc(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV)
