@@ -58,3 +58,36 @@ class RepoInfo:
 def iter_repos() -> Generator[RepoInfo, None, None]:
     for repo in load_artifact_creation_dates().itertuples(index=False):
         yield RepoInfo(*repo)
+
+def get_included_file_extensions() -> list[str]:
+    df = pd.read_csv("file_types_inclusion.csv")
+
+    # Clean extension column (remove stray quotes like """md""")
+    df["extension"] = (
+        df["extension"]
+        .astype(str)
+        .str.replace('"', "", regex=False)
+        .str.strip()
+        .str.lower()
+    )
+
+    # Normalize will_include to boolean
+    df["will_include"] = (
+        df["will_include"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .map({"true": True, "false": False})
+    )
+
+    included_extensions = (
+        df.loc[df["will_include"] == True, "extension"]
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+    return included_extensions
+
+if __name__ == "__main__":
+    print(get_included_file_extensions())
