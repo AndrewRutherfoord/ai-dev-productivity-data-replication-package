@@ -41,6 +41,20 @@ class RepoInfo:
     commits_after : int
     total_commits : int
 
+    def to_dict(self):
+        return {
+            "repository": self.repository,
+            "url": self.url,
+            "branch": self.branch,
+            "branch_hash": self.branch_hash,
+            "artifact_original_name": self.artifact_original_name,
+            "artifact_creation_commit": self.artifact_creation_commit,
+            "artifact_creation_date": self.artifact_creation_date,
+            "commits_before": self.commits_before,
+            "commits_after": self.commits_after,
+            "total_commits": self.total_commits,
+        }
+
 def iter_repos() -> Generator[RepoInfo, None, None]:
     for repo in load_artifact_creation_dates().itertuples(index=False):
         yield RepoInfo(*repo)

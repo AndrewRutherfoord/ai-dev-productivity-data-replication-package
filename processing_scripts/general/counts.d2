@@ -1,0 +1,38 @@
+direction: right
+
+Repository: {
+  label: "Repository\n412"
+  shape: rectangle
+  style.border-radius: 12
+}
+
+Branch: {
+  label: "Branch\n412"
+  shape: rectangle
+  style.border-radius: 12
+}
+
+Commit: {
+  label: "Commit\n679,223"
+  shape: rectangle
+  style.border-radius: 12
+}
+
+Developer: {
+  label: "Developer\n23,968"
+  shape: rectangle
+  style.border-radius: 12
+}
+
+File: {
+  label: "File\n384,551"
+  shape: rectangle
+  style.border-radius: 12
+}
+
+Commit -> Developer: "AUTHOR\n679,223"
+Commit -> Branch: "IN_BRANCH\n686,394"
+Branch -> Repository: "PART_OF\n412"
+Commit -> Commit: "PARENT\n749,822"
+Commit -> File: "MODIFIED\n3,122,220"
+File -> File: "RENAMED_TO\n92,491"
