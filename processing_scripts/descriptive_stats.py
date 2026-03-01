@@ -493,7 +493,7 @@ def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     box = plt.boxplot([before_trimmed, after_trimmed], tick_labels=["before", "after"], patch_artist=True)
     for patch, color in zip(box["boxes"], ["#8172B2", "#55A868"]):
         patch.set_facecolor(color)
-    plt.title("LOC per repo-week before vs after artifact creation")
+    plt.title("Modified LOC per repo-week before vs after artifact creation")
     plt.ylabel("LOC per repo-week")
     plt.tight_layout()
     plt.savefig("artifact_loc_before_after_boxplot.png")
