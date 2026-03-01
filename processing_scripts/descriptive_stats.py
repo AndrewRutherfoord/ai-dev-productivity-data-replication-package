@@ -472,6 +472,32 @@ def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     plt.tight_layout()
     plt.savefig("artifact_aligned_loc_median_iqr.png")
 
+    # boxplot comparing before/after periods (weeks_before and weeks_after), outliers removed
+    all_df["period"] = all_df["week_offset"].apply(lambda w: "before" if w < 0 else "after")
+    before_vals = all_df.loc[(all_df["period"] == "before") & (all_df["week_offset"] >= -weeks_before), "loc_in_week"]
+    after_vals = all_df.loc[(all_df["period"] == "after") & (all_df["week_offset"] <= weeks_after), "loc_in_week"]
+    
+    # remove outliers using IQR method
+    def trim_outliers(series):
+        q1 = series.quantile(0.25)
+        q3 = series.quantile(0.75)
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        return series[(series >= lower_bound) & (series <= upper_bound)]
+    
+    before_trimmed = trim_outliers(before_vals)
+    after_trimmed = trim_outliers(after_vals)
+    
+    plt.figure(figsize=(6, 5))
+    box = plt.boxplot([before_trimmed, after_trimmed], tick_labels=["before", "after"], patch_artist=True)
+    for patch, color in zip(box["boxes"], ["#8172B2", "#55A868"]):
+        patch.set_facecolor(color)
+    plt.title("LOC per repo-week before vs after artifact creation")
+    plt.ylabel("LOC per repo-week")
+    plt.tight_layout()
+    plt.savefig("artifact_loc_before_after_boxplot.png")
+
 
 # for each repo compute commits per week before and after artifact creation
 # this includes repos even if they have 0 commits before or 0 commits after
