@@ -473,6 +473,111 @@ def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     plt.savefig("artifact_aligned_loc_median_iqr.png")
 
 
+# for each repo compute commits per week before and after artifact creation
+# this includes repos even if they have 0 commits before or 0 commits after
+def chart_commits_per_week_before_after_(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
+    
+    from interact_with_neo4j import iter_repos
+
+    lookup = artifact_date_lookup(csv_path)
+
+    rows = []
+    for repo in iter_repos():
+        created_at = get_artifact_creation_date(repo, lookup)
+        if not created_at:
+            continue
+
+        query = f"""
+        MATCH (r:Repository {{url: "{repo.url}"}})<-[:PART_OF]-(b:Branch {{name: "{repo.branch}"}})
+        MATCH (b)<-[:IN_BRANCH]-(c:Commit)
+        WHERE c.date IS NOT NULL
+        WITH datetime("{created_at}") AS t0, datetime(replace(c.date, ' ', 'T')) AS dt
+        WITH duration.inDays(t0, dt).days AS day_offset
+        WHERE day_offset >= -{weeks_before}*7 AND day_offset <= {weeks_after}*7
+        WITH sum(CASE WHEN day_offset < 0 THEN 1 ELSE 0 END) AS commits_before,
+            sum(CASE WHEN day_offset >= 0 THEN 1 ELSE 0 END) AS commits_after
+        RETURN commits_before, commits_after
+        """
+
+        df = load_df(query)
+        if df.empty:
+            print("No data returned for commit frequency before and after creation of artifact.")
+            return
+        
+        rows.append({
+            "repo_key": f"{repo.url}::{repo.branch}",
+            "commits_before": float(df.loc[0, "commits_before"]) / float(weeks_before) if weeks_before > 0 else float("nan"),
+            "commits_after": float(df.loc[0, "commits_after"]) / float(weeks_after) if weeks_after > 0 else float("nan"),
+        })
+    
+    if not rows:
+        print("No data collected for commit frequency before and after creation of artifact.")
+        return
+    
+    all_df = pd.DataFrame(rows).dropna()
+
+    plt.figure(figsize=(7, 5))
+    box = plt.boxplot(
+        [all_df["commits_before"], all_df["commits_after"]],
+        tick_labels=["Before", "After"],
+        patch_artist=True
+    )
+    box["boxes"][0].set_facecolor("#4C72B0")
+    box["boxes"][1].set_facecolor("#55A868")
+    plt.title("Commits per week per repo (before vs after artifact creation)")
+    plt.ylabel("Commits per repo per week")
+    plt.yscale("log")
+    plt.tight_layout()
+    plt.savefig("commits_per_week_before_after_boxplot.png")
+
+
+def chart_total_commits_before_after_artifact(csv_path: str = ARTIFACT_CSV):
+
+    from interact_with_neo4j import iter_repos
+
+    lookup = artifact_date_lookup(csv_path)
+
+    total_before = 0
+    total_after = 0
+    used_repos = 0
+
+    for repo in iter_repos():
+        created_at = get_artifact_creation_date(repo, lookup)
+        if not created_at:
+            continue
+
+        query = f"""
+        MATCH (r:Repository {{url: "{repo.url}"}})<-[:PART_OF]-(b:Branch {{name: "{repo.branch}"}})
+        MATCH (b)<-[:IN_BRANCH]-(c:Commit)
+        WHERE c.date IS NOT NULL
+        WITH datetime("{created_at}") AS t0, datetime(replace(c.date, ' ', 'T')) AS dt
+        RETURN
+            sum(CASE WHEN dt < t0 THEN 1 ELSE 0 END) AS commits_before,
+            sum(CASE WHEN dt >= t0 THEN 1 ELSE 0 END) AS commits_after
+        """
+
+        df = load_df(query)
+        if df.empty:
+            print("No data returned for total commits before and after creation of artifact.")
+            return
+
+        total_before += int(df.loc[0, "commits_before"] or 0)
+        total_after += int(df.loc[0, "commits_after"] or 0)
+        used_repos += 1
+    
+    if used_repos == 0:
+        print("No repositories with artifact creation date found for total commits before and after artifact creation.")
+        return
+    
+    # plot
+    plt.figure(figsize=(6, 4))
+    plt.bar(["Before", "After"], [total_before, total_after])
+    plt.title("Total commits before vs after artifact creation")
+    plt.ylabel("Total commits")
+    plt.tight_layout()
+    plt.savefig("total_commits_before_after.png")
+
+
 if __name__ == "__main__":
     chart_repositories_per_year()
     chart_commits_per_year()
@@ -482,3 +587,5 @@ if __name__ == "__main__":
     chart_event_aligned_commit_frequency_week(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV) # change number of weeks if necessary
     chart_event_aligned_commit_frequency_month(months_before=3, months_after=3, csv_path=ARTIFACT_CSV) # change number of months if necessary
     chart_commit_loc(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV)
+    chart_commits_per_week_before_after_(weeks_before=30, weeks_after=30, csv_path=ARTIFACT_CSV)
+    chart_total_commits_before_after_artifact(csv_path=ARTIFACT_CSV)
