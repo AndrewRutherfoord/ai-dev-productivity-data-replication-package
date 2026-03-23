@@ -1,0 +1,2 @@
+test,num_groups,group_names,statistic,pvalue
+Kruskal-Wallis on delta_commit_per_week across language groups,5,"JavaScript/TypeScript, Python, Go, Web, C/C++",6.202448404428701,0.1845308377547603

@@ -1,0 +1,2 @@
+group,num_repos,median_before,median_after,median_delta,wilcoxon_statistic,wilcoxon_pvalue,effect_size_rbc
+Overall,179,5.733333333333333,9.3,0.1333333333333333,6965.5,0.11656256027022933,0.07262569832402235

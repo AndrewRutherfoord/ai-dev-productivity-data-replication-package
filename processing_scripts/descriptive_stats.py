@@ -14,7 +14,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Any, cast, Optional
 
-HOST = "100.65.19.90"
+HOST = "100.65.19.91"
 URI = f"neo4j://{HOST}:7687"
 USER = "neo4j"
 PASSWORD = "neo4j123"
