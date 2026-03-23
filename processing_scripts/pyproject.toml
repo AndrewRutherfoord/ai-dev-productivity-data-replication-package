@@ -8,6 +8,8 @@ dependencies = [
     "matplotlib>=3.10.8",
     "neo4j>=6.1.0",
     "pandas>=3.0.1",
+    "pmdarima>=2.1.1",
     "scipy>=1.17.1",
     "seaborn>=0.13.2",
+    "statsmodels>=0.14.6",
 ]

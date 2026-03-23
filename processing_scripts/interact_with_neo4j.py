@@ -14,9 +14,10 @@ date_format = "yyyy-MM-dd HH:mm:ss"
 
 driver = GraphDatabase.driver(URI, auth=(USER, PASSWORD))
 
-def load_df(query: str) -> pd.DataFrame:
+def load_df(query: str, params: dict | None = None) -> pd.DataFrame:
     with driver.session() as session:
-        data = session.run(cast(Any, query)).data()
+        result = session.run(cast(Any, query), params or {})
+        data = result.data()
     return pd.DataFrame(data)
 
 artifacts_data = None
@@ -62,7 +63,6 @@ def iter_repos() -> Generator[RepoInfo, None, None]:
 def get_included_file_extensions() -> list[str]:
     df = pd.read_csv("file_types_inclusion.csv")
 
-    # Clean extension column (remove stray quotes like """md""")
     df["extension"] = (
         df["extension"]
         .astype(str)
@@ -71,7 +71,6 @@ def get_included_file_extensions() -> list[str]:
         .str.lower()
     )
 
-    # Normalize will_include to boolean
     df["will_include"] = (
         df["will_include"]
         .astype(str)
@@ -89,5 +88,37 @@ def get_included_file_extensions() -> list[str]:
 
     return included_extensions
 
+def get_file_extension_mappings() -> dict[str, str]:
+    df = pd.read_csv("file_types_inclusion.csv")
+
+    # Clean extension column caused by included escape quotes
+    df["extension"] = (
+        df["extension"]
+        .astype(str)
+        .str.replace('"', "", regex=False)
+        .str.strip()
+        .str.lower()
+    )
+
+    # will_include to boolean
+    df["will_include"] = (
+        df["will_include"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .map({"true": True, "false": False})
+    )
+
+    # Create a mapping of extension to category for included extensions
+    extension_mapping = (
+        df.loc[df["will_include"] == True, ["extension", "grouping"]]
+        .dropna()
+        .set_index("extension")["grouping"]
+        .to_dict()
+    )
+
+    return extension_mapping # type: ignore
+
 if __name__ == "__main__":
-    print(get_included_file_extensions())
+    # print(get_included_file_extensions())
+    print(get_file_extension_mappings())
