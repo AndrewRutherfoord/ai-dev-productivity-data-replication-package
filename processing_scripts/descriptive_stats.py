@@ -47,7 +47,7 @@ def chart_repositories_per_year():
     plt.xlabel("Year")
     plt.ylabel("Number of Repositories")
     plt.tight_layout()
-    plt.savefig("repos_per_year.png")
+    plt.savefig("plots/repos_per_year.png")
 
 def chart_commits_per_year():
     query = """
@@ -66,7 +66,7 @@ def chart_commits_per_year():
     plt.xlabel("Year")
     plt.ylabel("Number of Commits")
     plt.tight_layout()
-    plt.savefig("commits_per_year.png")
+    plt.savefig("plots/commits_per_year.png")
 
 def chart_commits_per_project():
     query = """
@@ -101,7 +101,7 @@ def chart_commits_per_project():
     plt.ylabel("Number of Projects")
     plt.legend()
     plt.tight_layout()
-    plt.savefig("commits_per_project.png")
+    plt.savefig("plots/commits_per_project.png")
 
     print(f"Average commits per project: {avg_commits:.2f}")
 
@@ -136,7 +136,7 @@ def chart_artifact_creation():
     plt.ylabel("Files Created")
     plt.xticks(rotation=45, ha="right")
     plt.tight_layout()
-    plt.savefig("special_files_timeline.png")
+    plt.savefig("plots/special_files_timeline.png")
 
 def chart_before_after_commits():
     Q_COMMITS_BEFORE_AFTER_SPECIAL = """
@@ -207,7 +207,7 @@ def chart_before_after_commits():
     plt.title("Per-Repository Commit Ratio (Before/After, Outliers Trimmed)")
     plt.ylabel("Ratio")
     plt.tight_layout()
-    plt.savefig("commits_before_after_ratio.png")
+    plt.savefig("plots/commits_before_after_ratio.png")
 
 
 # create a lookup from the csv (url, branch)
@@ -301,7 +301,7 @@ def chart_event_aligned_commit_frequency_week(weeks_before, weeks_after, csv_pat
     plt.xlabel("Weeks relative to artifact creation (week 0 is creation week)")
     plt.ylabel("Commits per repo per week")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_median_iqr_week.png")
+    plt.savefig("plots/artifact_aligned_commit_frequency_median_iqr_week.png")
 
     # plot coverage, so how many repos contribute with data per week
     plt.figure(figsize=(10, 3.2))
@@ -311,7 +311,7 @@ def chart_event_aligned_commit_frequency_week(weeks_before, weeks_after, csv_pat
     plt.xlabel("Weeks relative to artifact creation")
     plt.ylabel("Week repo observations")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_coverage_week.png")
+    plt.savefig("plots/artifact_aligned_commit_frequency_coverage_week.png")
 
 
 # get commit tied to artifact creation date per repo and aggregate it in months before and after artifact creation
@@ -380,7 +380,7 @@ def chart_event_aligned_commit_frequency_month(months_before, months_after, csv_
     plt.xlabel("Months relative to artifact creation (month 0 is creation month)")
     plt.ylabel("Commits per repo per month")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_median_iqr_month.png")
+    plt.savefig("plots/artifact_aligned_commit_frequency_median_iqr_month.png")
 
     # plot coverage, so how many repos contribute with data per month
     plt.figure(figsize=(10, 3.2))
@@ -390,7 +390,7 @@ def chart_event_aligned_commit_frequency_month(months_before, months_after, csv_
     plt.xlabel("Months relative to artifact creation")
     plt.ylabel("Month repo observations")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_commit_frequency_coverage_month.png")
+    plt.savefig("plots/artifact_aligned_commit_frequency_coverage_month.png")
 
 
 def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
@@ -470,7 +470,7 @@ def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     plt.xlabel("Weeks relative to artifact creation")
     plt.ylabel("LOC per repo per week")
     plt.tight_layout()
-    plt.savefig("artifact_aligned_loc_median_iqr.png")
+    plt.savefig("plots/artifact_aligned_loc_median_iqr.png")
 
     # boxplot comparing before/after periods (weeks_before and weeks_after), outliers removed
     all_df["period"] = all_df["week_offset"].apply(lambda w: "before" if w < 0 else "after")
@@ -496,7 +496,7 @@ def chart_commit_loc(weeks_before, weeks_after, csv_path: str = ARTIFACT_CSV):
     plt.title("Modified LOC per repo-week before vs after artifact creation")
     plt.ylabel("LOC per repo-week")
     plt.tight_layout()
-    plt.savefig("artifact_loc_before_after_boxplot.png")
+    plt.savefig("plots/artifact_loc_before_after_boxplot.png")
 
 
 # for each repo compute commits per week before and after artifact creation
@@ -554,7 +554,7 @@ def chart_commits_per_week_before_after_(weeks_before, weeks_after, csv_path: st
     plt.ylabel("Commits per repo per week")
     plt.yscale("log")
     plt.tight_layout()
-    plt.savefig("commits_per_week_before_after_boxplot.png")
+    plt.savefig("plots/commits_per_week_before_after_boxplot.png")
 
 
 def chart_total_commits_before_after_artifact(csv_path: str = ARTIFACT_CSV):
@@ -601,7 +601,7 @@ def chart_total_commits_before_after_artifact(csv_path: str = ARTIFACT_CSV):
     plt.title("Total commits before vs after artifact creation")
     plt.ylabel("Total commits")
     plt.tight_layout()
-    plt.savefig("total_commits_before_after.png")
+    plt.savefig("plots/total_commits_before_after.png")
 
 
 if __name__ == "__main__":

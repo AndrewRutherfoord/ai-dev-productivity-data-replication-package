@@ -178,7 +178,7 @@ def build_commit_frequency_repo_dataset(weeks_before: int = WEEKS_BEFORE, weeks_
     
     # drop rows with missing commit freq data, just to be safe
     repo_df = repo_df.dropna(subset=["commits_per_week_before", "commits_per_week_after"])
-    repo_df.to_csv("repo_commit_frequency_30w_before_after.csv", index=False)
+    repo_df.to_csv("old-csv/repo_commit_frequency_30w_before_after.csv", index=False)
 
     # 179 repos in this dataset as of now
     print(f"Saved repo level dataset: {len(repo_df)} repos")
@@ -215,7 +215,7 @@ def run_overall_commit_freq_wilcoxon(repo_df: pd.DataFrame) -> pd.DataFrame:
             "wilcoxon_pvalue": np.nan,
             "effect_size_rbc": np.nan,
         }])
-        result_df.to_csv("commit_frequency_overall_wilcoxon.csv", index=False)
+        result_df.to_csv("old-csv/commit_frequency_overall_wilcoxon.csv", index=False)
         return result_df
 
     # we have data, we run the test and test whether the median paired difference is 0
@@ -239,7 +239,7 @@ def run_overall_commit_freq_wilcoxon(repo_df: pd.DataFrame) -> pd.DataFrame:
         "effect_size_rbc": float(effect_size_rbc) if not pd.isna(effect_size_rbc) else np.nan,
     }])
 
-    result_df.to_csv("commit_frequency_overall_wilcoxon.csv", index=False)
+    result_df.to_csv("old-csv/commit_frequency_overall_wilcoxon.csv", index=False)
     return result_df
 
 
@@ -316,7 +316,7 @@ def run_language_group_commit_freq_tests(repo_df: pd.DataFrame, min_repos_per_gr
     
     # store results
     result_df = result_df.sort_values(["p_value_fdr_bh", "wilcoxon_pvalue"], na_position="last")
-    result_df.to_csv("commit_frequency_language_group_wilcoxon_fdr.csv", index=False)
+    result_df.to_csv("old-csv/commit_frequency_language_group_wilcoxon_fdr.csv", index=False)
 
     return result_df
 
@@ -364,8 +364,8 @@ def run_commit_frequency_kruskal_by_language(repo_df: pd.DataFrame, min_repos_pe
     }])
 
     # save results
-    summary_df.to_csv("commit_frequency_language_group_delta_summary.csv", index=False)
-    test_df.to_csv("commit_frequency_kruskal_wallis_language_groups.csv", index=False)
+    summary_df.to_csv("old-csv/commit_frequency_language_group_delta_summary.csv", index=False)
+    test_df.to_csv("old-csv/commit_frequency_kruskal_wallis_language_groups.csv", index=False)
 
     return test_df
 
@@ -396,7 +396,7 @@ def plot_commit_freq_delta_by_language(repo_df: pd.DataFrame, min_repos_per_grou
     plt.ylabel("Delta commits per week (after - before)")
     plt.xticks(rotation=20, ha="right")
     plt.tight_layout()
-    plt.savefig("commit_frequency_delta_by_language_group.png")
+    plt.savefig("plots/commit_frequency_delta_by_language_group.png")
 
 
 def main() -> None:
