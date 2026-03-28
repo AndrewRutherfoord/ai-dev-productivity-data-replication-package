@@ -285,14 +285,14 @@ def compile_weekly_sarima_summary(results: dict[str, list[dict]], weekly_metrics
                 "post_sig_pct": post_sig.mean(),
                 "trend_sig_count": trend_sig.sum(),
                 "trend_sig_pct": trend_sig.mean(),
-                "both_count": (post_sig & trend_sig).sum(),
-                "both_pct": (post_sig & trend_sig).mean(),
-                "post_only_count": (post_sig & ~trend_sig).sum(),
-                "post_only_pct": (post_sig & ~trend_sig).mean(),
-                "trend_only_count": (~post_sig & trend_sig).sum(),
-                "trend_only_pct": (~post_sig & trend_sig).mean(),
-                "neither_count": (~post_sig & ~trend_sig).sum(),
-                "neither_pct": (~post_sig & ~trend_sig).mean(),
+                # "both_count": (post_sig & trend_sig).sum(),
+                # "both_pct": (post_sig & trend_sig).mean(),
+                # "post_only_count": (post_sig & ~trend_sig).sum(),
+                # "post_only_pct": (post_sig & ~trend_sig).mean(),
+                # "trend_only_count": (~post_sig & trend_sig).sum(),
+                # "trend_only_pct": (~post_sig & trend_sig).mean(),
+                # "neither_count": (~post_sig & ~trend_sig).sum(),
+                # "neither_pct": (~post_sig & ~trend_sig).mean(),
                 "mean_coef_post": results_df["coef_post"].mean(),
                 "median_coef_post": results_df["coef_post"].median(),
                 "mean_coef_trend": results_df["coef_time_after"].mean(),
@@ -374,3 +374,45 @@ commit_ttest_results = execute_paired_ttest(commit_results, commit_metrics, [0, 
 ttest_df = pd.DataFrame(weekly_ttest_results + commit_ttest_results)
 ttest_df.to_csv("churn_paired_ttest_summary.csv", index=False)
 print(f"Saved {len(ttest_df)} rows")
+
+# %% Plot the SARIMA results
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+def plot_sarima_significance(summary_df: pd.DataFrame, group: str = "All", output_path: str = "images/churn_sarima_significance.png"):
+    df = summary_df[summary_df["group"] == group].copy()
+    df = df.set_index("metric").reindex(weekly_metrics).dropna()
+
+    x = np.arange(len(df))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    bars1 = ax.bar(x - width / 2, df["post_sig_pct"] * 100, width, label="Level change (post)", color="#4C72B0")
+    bars2 = ax.bar(x + width / 2, df["trend_sig_pct"] * 100, width, label="Trend change (time_after)", color="#DD8452")
+
+    ax.axhline(y=SIGNIFICANCE_LEVEL * 100, color="red", linestyle="--", linewidth=1, label=f"Significance threshold ({int(SIGNIFICANCE_LEVEL * 100)}%)")
+
+    ax.set_xlabel("Metric")
+    ax.set_ylabel("% of repos with significant effect")
+    ax.set_title(f"SARIMA: Proportion of Repos with Significant Churn Effects — {group} files")
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_ylim(0, 100)
+    ax.legend()
+
+    for bar in bars1:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+    for bar in bars2:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.show()
+    print(f"Saved chart to {output_path}")
+
+plot_sarima_significance(summary_df)
+
