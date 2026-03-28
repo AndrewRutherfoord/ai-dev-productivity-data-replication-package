@@ -2,6 +2,7 @@
 # NOTE: Apparely changes in imported modules are not reloaded when you re-run this cell. You need to restart the jupyter kernet and run all cells again to see changes in interact_with_neo4j.py or arimax.py. Very irritating...
 import logging
 import pandas as pd
+import numpy as np
 from interact_with_neo4j import (
     RepoInfo,
     get_file_extension_mappings,
@@ -85,6 +86,7 @@ def enrich_df(repo : RepoInfo, df : pd.DataFrame, week_col = "week", is_weekly =
 
     if is_weekly:
         df = df.asfreq("W-MON").fillna(0)
+        artifact_week = artifact_dt.to_period("W-MON").start_time
 
     # group into before/after artifact creation
     df["week_offset"] = (df.index - artifact_week).days // 7 # type: ignore
@@ -103,9 +105,15 @@ def enrich_df(repo : RepoInfo, df : pd.DataFrame, week_col = "week", is_weekly =
         (df["week_offset"] < post_weeks)
     ]
 
-    df["post"] = (df["week_offset"] >= 0).astype(int)
     df["time"] = range(len(df))
-    df["time_after"] = df["time"] * df["post"]
+
+    post_pos = np.flatnonzero(df["week_offset"].to_numpy() >= 0)
+    if len(post_pos) == 0:
+        return None
+    t0 = int(post_pos[0])
+
+    df["post"] = (df["time"] >= t0).astype(int)
+    df["time_after"] = (df["time"] - t0).clip(lower=0)
 
     return df
 
@@ -231,7 +239,8 @@ def process_repo_weekly_metrics(repo : RepoInfo, group : str) -> list[dict]:
             return results
 
         for metric in weekly_metrics:
-            X = weekly_df[["post", "time_after"]]
+            # X = weekly_df[["post", "time_after"]]
+            X = weekly_df[["time", "post", "time_after"]]
 
             result, order = fit_best_arimax(weekly_df[metric], X)
 
@@ -416,3 +425,5 @@ def plot_sarima_significance(summary_df: pd.DataFrame, group: str = "All", outpu
 
 plot_sarima_significance(summary_df)
 
+
+# %%
