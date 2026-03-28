@@ -493,3 +493,4 @@ plot_trend_direction(summary_df)
 
 # %%
 plot_trend_direction(summary_df, group="Bash", output_path="images/churn_sarima_trend_direction_bash.png")
+# %%

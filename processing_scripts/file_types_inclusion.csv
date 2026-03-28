@@ -16,7 +16,7 @@
 """txt""",6903,FALSE,,Text
 """yml""",5818,FALSE,,YAML
 """cs""",5350,FALSE,,C#
-"""ml""",5014,TRUE,Ocaml,Ocaml
+"""ml""",5014,FALSE,Ocaml,Ocaml
 """v""",4983,TRUE,V Lang,V Lang
 """sh""",4443,TRUE,Bash,Bash Script
 """php""",4271,TRUE,PHP,PHP
@@ -27,18 +27,18 @@
 """cpp""",2485,TRUE,C,C++
 """out""",2457,FALSE,,
 """csv""",2053,FALSE,,
-"""dart""",1965,TRUE,Dart,Dart code
+"""dart""",1965,FALSE,Dart,Dart code
 """css""",1960,TRUE,CSS,CSS
 """sql""",1934,FALSE,,SQL - Often generated
 """snap""",1822,FALSE,,
-"""mli""",1802,TRUE,Ocaml,Ocaml Interface
+"""mli""",1802,False,Ocaml,Ocaml Interface
 """xml""",1750,FALSE,,XML
 """reference""",1607,FALSE,,
-"""ex""",1605,TRUE,Elixir,Elixir Code
+"""ex""",1605,FALSE,Elixir,Elixir Code
 """png""",1371,FALSE,,
 """meta""",1301,FALSE,,
-"""scss""",1289,TRUE,CSS,
-"""swift""",1248,TRUE,Swift,
+"""scss""",1289,TRUE,CSS,CSS
+"""swift""",1248,FALSE,Swift,Swift Code
 """patch""",1120,FALSE,,
 """c""",1070,TRUE,C,
 """test""",1066,FALSE,,
@@ -68,7 +68,7 @@
 """ipynb""",469,FALSE,,
 """ttf""",453,FALSE,,
 """cc""",450,FALSE,,
-"""zsh""",448,FALSE,,
+"""zsh""",448,True,Bash,
 """part""",413,FALSE,,
 """rd""",394,FALSE,,
 """gitignore""",389,FALSE,,
@@ -78,7 +78,7 @@
 """gv""",376,FALSE,,
 """pyi""",354,FALSE,,
 """proto""",345,FALSE,,
-"""vue""",341,FALSE,,
+"""vue""",341,TRUE,Javascript,Vue.js
 """astro""",320,FALSE,,
 """lock""",303,FALSE,,
 """vim""",266,FALSE,,
@@ -104,7 +104,7 @@
 """example""",141,FALSE,,
 """woff""",140,FALSE,,
 """output""",137,FALSE,,
-"""jsx""",128,FALSE,,
+"""jsx""",128,TRUE,Javascript,React JSX
 """erb""",127,FALSE,,
 """otf""",127,FALSE,,
 """bats""",125,FALSE,,
