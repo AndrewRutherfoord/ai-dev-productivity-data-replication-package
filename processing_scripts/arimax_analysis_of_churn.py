@@ -285,28 +285,52 @@ def compile_weekly_sarima_summary(results: dict[str, list[dict]], weekly_metrics
             post_sig = results_df["p_post"] < SIGNIFICANCE_LEVEL
             trend_sig = results_df["p_time_after"] < SIGNIFICANCE_LEVEL
 
-            all_summaries.append({
-                "group": group,
-                "metric": metric,
-                "n": len(results_df),
-                "period": "weeks",
-                "post_sig_count": post_sig.sum(),
-                "post_sig_pct": post_sig.mean(),
-                "trend_sig_count": trend_sig.sum(),
-                "trend_sig_pct": trend_sig.mean(),
-                # "both_count": (post_sig & trend_sig).sum(),
-                # "both_pct": (post_sig & trend_sig).mean(),
-                # "post_only_count": (post_sig & ~trend_sig).sum(),
-                # "post_only_pct": (post_sig & ~trend_sig).mean(),
-                # "trend_only_count": (~post_sig & trend_sig).sum(),
-                # "trend_only_pct": (~post_sig & trend_sig).mean(),
-                # "neither_count": (~post_sig & ~trend_sig).sum(),
-                # "neither_pct": (~post_sig & ~trend_sig).mean(),
-                "mean_coef_post": results_df["coef_post"].mean(),
-                "median_coef_post": results_df["coef_post"].median(),
-                "mean_coef_trend": results_df["coef_time_after"].mean(),
-                "median_coef_trend": results_df["coef_time_after"].median(),
-            })
+            # Direction among significant repos
+            post_pos_sig = post_sig & (results_df["coef_post"] > 0)
+            post_neg_sig = post_sig & (results_df["coef_post"] < 0)
+
+            trend_pos_sig = trend_sig & (results_df["coef_time_after"] > 0)
+            trend_neg_sig = trend_sig & (results_df["coef_time_after"] < 0)
+
+            all_summaries.append( {
+                    "group": group,
+                    "metric": metric,
+                    "n": len(results_df),
+                    "period": "weeks",
+                    "post_sig_count": int(post_sig.sum()),
+                    "post_sig_pct": float(post_sig.mean()),
+                    "trend_sig_count": int(trend_sig.sum()),
+                    "trend_sig_pct": float(trend_sig.mean()),
+
+                    # Directional % of repos. 
+                    "post_pos_sig_pct": float(post_pos_sig.mean()),
+                    "post_neg_sig_pct": float(post_neg_sig.mean()),
+                    "trend_pos_sig_pct": float(trend_pos_sig.mean()),
+                    "trend_neg_sig_pct": float(trend_neg_sig.mean()),
+
+                    # Direction among significant only
+                    "post_pos_share_among_sig": float(
+                        post_pos_sig.sum() / post_sig.sum()
+                    )
+                    if post_sig.sum() > 0
+                    else np.nan,
+                    "trend_pos_share_among_sig": float(
+                        trend_pos_sig.sum() / trend_sig.sum()
+                    )
+                    if trend_sig.sum() > 0
+                    else np.nan,
+
+                    # Coefs
+                    "mean_coef_post": float(results_df["coef_post"].mean()),
+                    "median_coef_post": float(results_df["coef_post"].median()),
+                    "mean_coef_trend": float(
+                        results_df["coef_time_after"].mean()
+                    ),
+                    "median_coef_trend": float(
+                        results_df["coef_time_after"].median()
+                    ),
+
+                })
 
     summary_df = pd.DataFrame(all_summaries)
     return summary_df
@@ -427,3 +451,45 @@ plot_sarima_significance(summary_df)
 
 
 # %%
+
+def plot_trend_direction(
+    summary_df: pd.DataFrame,
+    group: str = "All",
+    output_path: str = "images/churn_sarima_trend_direction.png",
+):
+    df = summary_df[summary_df["group"] == group].copy()
+    df = df.set_index("metric").reindex(weekly_metrics).dropna()
+
+    x = np.arange(len(df))
+    width = 0.6
+
+    pos = df["trend_pos_sig_pct"] * 100
+    neg = df["trend_neg_sig_pct"] * 100
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.bar(x, pos, width, label="Significant positive trend change", color="#55A868")
+    ax.bar(
+        x,
+        neg,
+        width,
+        bottom=pos,
+        label="Significant negative trend change",
+        color="#C44E52",
+    )
+
+    ax.set_xlabel("Metric")
+    ax.set_ylabel("% of repos")
+    ax.set_title(f"SARIMA: Direction of Trend Change — {group} files")
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_ylim(0, 100)
+    ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.show()
+
+plot_trend_direction(summary_df)
+
+# %%
+plot_trend_direction(summary_df, group="Bash", output_path="images/churn_sarima_trend_direction_bash.png")
