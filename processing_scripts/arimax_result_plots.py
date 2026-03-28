@@ -1,3 +1,4 @@
+# %%
 from __future__ import annotations
 
 import math
@@ -8,9 +9,33 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from interact_with_neo4j import get_file_extension_mappings
+
 ARIMAX_CSV = Path("churn_arimax_summary.csv")
 TTEST_CSV = Path("churn_paired_ttest_summary.csv")
 OUTPUT_DIR = Path("arimax_result_plots")
+SIGNIFICANCE_LEVEL = 0.1
+
+METRICS = [
+    "gross_churn",
+    "net_added",
+    "net_removed",
+    "net_negative_commits",
+    "add_delete_ratio",
+    "total_commits",
+    "files_touched_per_commit",
+    "files_touched",
+    "churn",
+    "net_modified",
+    "is_net_negative",
+]
+METRIC_LABELS = {
+    v: v.replace("_", " ").title() for v in METRICS
+}
+print(METRIC_LABELS)
+
+# %%
+
 
 # keep weird characters away from file names (for saving plots)
 def sanitize_filename(text: str) -> str:
@@ -84,6 +109,7 @@ def make_heatmap(df: pd.DataFrame, title: str, cbar_label: str, output_path: Pat
     
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label(cbar_label)
+    cbar.ax.yaxis.set_label_position("left")
     fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -94,19 +120,83 @@ def save_arimax_heatmaps(arimax_df: pd.DataFrame, outdir: Path, suffix: str = ""
     metric_order = default_metric_order(arimax_df["metric"].unique())
     group_order = sort_groups(arimax_df["group"].unique())
 
-    for value_col, title_stub in [
-        ("post_sig_pct", "ARIMAX post-significance percentage"),
-        ("trend_sig_pct", "ARIMAX trend-significance percentage"),
+    for value_col, title_stub, cbar_label in [
+        ("post_sig_pct", "ARIMAX post-significance percentage", "% repos with significant instant change"),
+        ("trend_sig_pct", "ARIMAX trend-significance percentage", "% repos with significant trend change"),
     ]:
         pivot_df = arimax_df.pivot(index="metric", columns="group", values=value_col)
         pivot_df = pivot_df.reindex(index=metric_order, columns=group_order)
+        pivot_df.index = [METRIC_LABELS.get(m, m) for m in pivot_df.index]
 
         make_heatmap(
             pivot_df,
             title=f"{title_stub}{suffix}",
-            cbar_label=value_col,
+            cbar_label=cbar_label,
             output_path=outdir / f"heatmap_{sanitize_filename(value_col)}{sanitize_filename(suffix)}.png",
         )
+
+
+def plot_sarima_significance(summary_df: pd.DataFrame, group: str, output_path: Path) -> None:
+    df = summary_df[summary_df["group"] == group].set_index("metric")
+    df = df.reindex(default_metric_order(df.index)).dropna()
+    df.index = [METRIC_LABELS.get(m, m) for m in df.index]
+
+    x = np.arange(len(df))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    bars1 = ax.bar(x - width / 2, df["post_sig_pct"] * 100, width, label="Level change (post)", color="#4C72B0")
+    bars2 = ax.bar(x + width / 2, df["trend_sig_pct"] * 100, width, label="Trend change (time_after)", color="#DD8452")
+
+    ax.axhline(y=SIGNIFICANCE_LEVEL * 100, color="red", linestyle="--", linewidth=1, label=f"Significance threshold ({int(SIGNIFICANCE_LEVEL * 100)}%)")
+    ax.set_xlabel("Metric")
+    ax.set_ylabel("% of repos with significant effect")
+    ax.set_title(f"SARIMA: Proportion of Repos with Significant Churn Effects — {group} files")
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_ylim(0, 100)
+    ax.legend()
+
+    for bar in bars1:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+    for bar in bars2:
+        h = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved chart to {output_path}")
+
+
+def plot_trend_direction(summary_df: pd.DataFrame, group : str, output_path : Path) -> None:
+    df = summary_df[summary_df["group"] == group].set_index("metric")
+    df = df.reindex(default_metric_order(df.index)).dropna()
+    df.index = [METRIC_LABELS.get(m, m) for m in df.index]
+
+    x = np.arange(len(df))
+    width = 0.6
+
+    pos = df["trend_pos_sig_pct"] * 100
+    neg = df["trend_neg_sig_pct"] * 100
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.bar(x, pos, width, label="Significant positive trend change", color="#55A868")
+    ax.bar(x, neg, width, bottom=pos, label="Significant negative trend change", color="#C44E52")
+
+    ax.set_xlabel("Metric")
+    ax.set_ylabel("% of repos")
+    ax.set_title(f"SARIMA: Direction of Trend Change — {group} files")
+    ax.set_xticks(x)
+    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_ylim(0, 100)
+    ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved chart to {output_path}")
 
 
 def main() -> None:
@@ -148,6 +238,10 @@ def main() -> None:
         save_arimax_heatmaps(arimax_all, OUTPUT_DIR, suffix=" (All group)")
     else:
         print("No 'All' rows found in ARIMAX summary; skipping All-group ARIMAX plots.")
+
+    for group in ["All", "Python", "Javascript"]:
+        plot_sarima_significance(arimax_df, group=group, output_path=OUTPUT_DIR / f"churn_sarima_significance_{group.lower()}.png")
+        plot_trend_direction(arimax_df, group=group, output_path=OUTPUT_DIR / f"churn_sarima_trend_direction_{group.lower()}.png")
 
     print("Done.")
 
