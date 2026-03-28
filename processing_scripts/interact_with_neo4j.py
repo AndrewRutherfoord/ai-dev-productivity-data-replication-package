@@ -100,6 +100,9 @@ def get_file_extension_mappings() -> dict[str, str]:
         .str.lower()
     )
 
+    # Add back the leading dot for suffix matching in scripts
+    df["extension"] = "." + df["extension"]
+
     # will_include to boolean
     df["will_include"] = (
         df["will_include"]
