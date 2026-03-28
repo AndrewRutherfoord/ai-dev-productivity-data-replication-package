@@ -15,8 +15,8 @@
 """java""",7218,TRUE,Java,Java
 """txt""",6903,FALSE,,Text
 """yml""",5818,FALSE,,YAML
-"""cs""",5350,FALSE,,C#
-"""ml""",5014,FALSE,Ocaml,Ocaml
+"""cs""",5350,TRUE,C#,C#
+"""ml""",5014,TRUE,Ocaml,Ocaml
 """v""",4983,TRUE,V Lang,V Lang
 """sh""",4443,TRUE,Bash,Bash Script
 """php""",4271,TRUE,PHP,PHP
@@ -27,14 +27,14 @@
 """cpp""",2485,TRUE,C,C++
 """out""",2457,FALSE,,
 """csv""",2053,FALSE,,
-"""dart""",1965,FALSE,Dart,Dart code
+"""dart""",1965,TRUE,Dart,Dart code
 """css""",1960,TRUE,CSS,CSS
 """sql""",1934,FALSE,,SQL - Often generated
 """snap""",1822,FALSE,,
-"""mli""",1802,False,Ocaml,Ocaml Interface
+"""mli""",1802,TRUE,Ocaml,Ocaml Interface
 """xml""",1750,FALSE,,XML
 """reference""",1607,FALSE,,
-"""ex""",1605,FALSE,Elixir,Elixir Code
+"""ex""",1605,TRUE,Elixir,Elixir Code
 """png""",1371,FALSE,,
 """meta""",1301,FALSE,,
 """scss""",1289,TRUE,CSS,CSS

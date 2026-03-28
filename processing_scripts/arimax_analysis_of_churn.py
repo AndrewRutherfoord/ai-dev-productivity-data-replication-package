@@ -16,6 +16,7 @@ from multithread import execute_tasks_in_parallel
 
 RESULT_FILE = "./productivity/arimax_results.csv"
 SIGNIFICANCE_LEVEL = 0.1
+MIN_REPOS = 10
 
 logging.getLogger("statsmodels").setLevel(logging.ERROR)
 logging.getLogger("pmdarima").setLevel(logging.ERROR)
@@ -279,7 +280,7 @@ def compile_weekly_sarima_summary(results: dict[str, list[dict]], weekly_metrics
             results_df = pd.DataFrame(rows)
             results_df = results_df[results_df["metric"] == metric]
 
-            if results_df.empty:
+            if results_df.empty or len(results_df) < MIN_REPOS:
                 continue
 
             post_sig = results_df["p_post"] < SIGNIFICANCE_LEVEL
@@ -376,7 +377,7 @@ def execute_paired_ttest(results : dict, metrics : list[str], delays : list[int]
                         pairs[metric].append({"repo": repo.url, **result})
 
             for metric in metrics:
-                if len(pairs[metric]) < 5:
+                if len(pairs[metric]) < MIN_REPOS:
                     logging.warning(f"Not enough data for paired t-test for group {group} on metric {metric} with delay {delay}. Skipping.")
                     continue
 
