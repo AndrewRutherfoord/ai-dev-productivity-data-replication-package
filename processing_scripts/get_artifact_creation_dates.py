@@ -10,6 +10,9 @@ EXCLUSION_TOTAL_COMMITS = 500
 EXCLUSION_COMMITS_BEFORE = 50
 EXCLUSION_COMMITS_AFTER = 50
 
+OUTPUT_CSV = "agents_claude_artifact_creations.csv"
+EXCLUDED_CSV = "agents_claude_artifact_creations_excluded.csv"
+
 def find_original_file(file_hash, max_depth=50):
     # Need to walk the rename history to find the original artifact creation commit.
     visited = set()
@@ -168,9 +171,9 @@ for result in results:
         print(f" Excluding {result['repository']} / {result['branch']} — not enough commits around artifact creation")
 
 df_results = pd.DataFrame(results)
-df_results.to_csv("agents_claude_artifact_creations.csv", index=False)
+df_results.to_csv(OUTPUT_CSV, index=False)
 print(df_results)
 
 df_excluded = pd.DataFrame(excluded_results)
-df_excluded.to_csv("agents_claude_artifact_creations_excluded.csv", index=False)
+df_excluded.to_csv(EXCLUDED_CSV, index=False)
 print(df_excluded)

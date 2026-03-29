@@ -1,3 +1,5 @@
+"""This module contains functions to fit ARIMAX models to the data and extract results in a consistent format."""
+
 from pmdarima import auto_arima
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 

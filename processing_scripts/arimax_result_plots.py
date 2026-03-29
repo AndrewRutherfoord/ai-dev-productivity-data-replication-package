@@ -227,6 +227,8 @@ def plot_trend_direction(summary_df: pd.DataFrame, group : str, output_path : Pa
 
 def main() -> None:
 
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
     arimax_df = pd.read_csv(ARIMAX_CSV)
     ttest_df = pd.read_csv(TTEST_CSV)
 
