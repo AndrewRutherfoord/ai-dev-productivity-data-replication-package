@@ -21,6 +21,7 @@ def fit_best_arimax(y, X):
     order = auto_model.order
  
     # Apply the best order to a SARIMAX model
+    # Seasonal component is disabled.
     model = SARIMAX(
         y,
         exog=X,

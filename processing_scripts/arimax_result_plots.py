@@ -16,6 +16,13 @@ TTEST_CSV = Path("churn_paired_ttest_summary.csv")
 OUTPUT_DIR = Path("arimax_result_plots")
 SIGNIFICANCE_LEVEL = 0.1
 
+# Plot font sizes
+TITLE_FONTSIZE = 14
+AXIS_LABEL_FONTSIZE = 12
+TICK_LABEL_FONTSIZE = 11
+LEGEND_FONTSIZE = 11
+ANNOTATION_FONTSIZE = 10
+
 METRICS = [
     "gross_churn",
     "net_added",
@@ -35,7 +42,6 @@ METRIC_LABELS = {
 print(METRIC_LABELS)
 
 # %%
-
 
 # keep weird characters away from file names (for saving plots)
 def sanitize_filename(text: str) -> str:
@@ -93,9 +99,9 @@ def make_heatmap(df: pd.DataFrame, title: str, cbar_label: str, output_path: Pat
 
     ax.set_xticks(np.arange(df.shape[1]))
     ax.set_yticks(np.arange(df.shape[0]))
-    ax.set_xticklabels(df.columns, rotation=45, ha="right")
-    ax.set_yticklabels(df.index)
-    ax.set_title(title)
+    ax.set_xticklabels(df.columns, rotation=45, ha="right", fontsize=TICK_LABEL_FONTSIZE)
+    ax.set_yticklabels(df.index, fontsize=TICK_LABEL_FONTSIZE)
+    ax.set_title(title, fontsize=TITLE_FONTSIZE)
 
     finite_vals = data[np.isfinite(data)]
     threshold = (finite_vals.max() + finite_vals.min()) / 2 if finite_vals.size else 0.5
@@ -105,10 +111,11 @@ def make_heatmap(df: pd.DataFrame, title: str, cbar_label: str, output_path: Pat
             val = data[i, j]
             label = "NA" if np.isnan(val) else format(val, value_fmt)
             text_color = "white" if (not np.isnan(val) and val > threshold) else "black"
-            ax.text(j, i, label, ha="center", va="center", color=text_color, fontsize=9)
+            ax.text(j, i, label, ha="center", va="center", color=text_color, fontsize=ANNOTATION_FONTSIZE)
     
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label(cbar_label)
+    cbar.set_label(cbar_label, fontsize=AXIS_LABEL_FONTSIZE)
+    cbar.ax.tick_params(labelsize=TICK_LABEL_FONTSIZE)
     cbar.ax.yaxis.set_label_position("left")
     fig.tight_layout()
     fig.savefig(output_path, dpi=300, bbox_inches="tight")
@@ -149,20 +156,38 @@ def plot_sarima_significance(summary_df: pd.DataFrame, group: str, output_path: 
     bars2 = ax.bar(x + width / 2, df["trend_sig_pct"] * 100, width, label="Trend change (time_after)", color="#DD8452")
 
     ax.axhline(y=SIGNIFICANCE_LEVEL * 100, color="red", linestyle="--", linewidth=1, label=f"Significance threshold ({int(SIGNIFICANCE_LEVEL * 100)}%)")
-    ax.set_xlabel("Metric")
-    ax.set_ylabel("% of repos with significant effect")
-    ax.set_title(f"SARIMA: Proportion of Repos with Significant Churn Effects — {group} files")
+    ax.set_xlabel("Metric", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("% of repos with significant effect", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_title(
+        f"SARIMA: Proportion of Repos with Significant Churn Effects — {group} files",
+        fontsize=TITLE_FONTSIZE,
+    )
     ax.set_xticks(x)
-    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_xticklabels(df.index, rotation=30, ha="right", fontsize=TICK_LABEL_FONTSIZE)
+    ax.tick_params(axis="y", labelsize=TICK_LABEL_FONTSIZE)
     ax.set_ylim(0, 100)
-    ax.legend()
+    ax.legend(fontsize=LEGEND_FONTSIZE)
 
     for bar in bars1:
         h = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            h + 1,
+            f"{h:.0f}%",
+            ha="center",
+            va="bottom",
+            fontsize=ANNOTATION_FONTSIZE,
+        )
     for bar in bars2:
         h = bar.get_height()
-        ax.text(bar.get_x() + bar.get_width() / 2, h + 1, f"{h:.0f}%", ha="center", va="bottom", fontsize=8)
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            h + 1,
+            f"{h:.0f}%",
+            ha="center",
+            va="bottom",
+            fontsize=ANNOTATION_FONTSIZE,
+        )
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
@@ -170,7 +195,7 @@ def plot_sarima_significance(summary_df: pd.DataFrame, group: str, output_path: 
     print(f"Saved chart to {output_path}")
 
 
-def plot_trend_direction(summary_df: pd.DataFrame, group : str, output_path : Path) -> None:
+def plot_trend_direction(summary_df: pd.DataFrame, group : str, output_path : Path, var_prefix : str = "trend") -> None:
     df = summary_df[summary_df["group"] == group].set_index("metric")
     df = df.reindex(default_metric_order(df.index)).dropna()
     df.index = [METRIC_LABELS.get(m, m) for m in df.index]
@@ -178,20 +203,21 @@ def plot_trend_direction(summary_df: pd.DataFrame, group : str, output_path : Pa
     x = np.arange(len(df))
     width = 0.6
 
-    pos = df["trend_pos_sig_pct"] * 100
-    neg = df["trend_neg_sig_pct"] * 100
+    pos = df[f"{var_prefix}_pos_sig_pct"] * 100
+    neg = df[f"{var_prefix}_neg_sig_pct"] * 100
 
     fig, ax = plt.subplots(figsize=(12, 6))
-    ax.bar(x, pos, width, label="Significant positive trend change", color="#55A868")
-    ax.bar(x, neg, width, bottom=pos, label="Significant negative trend change", color="#C44E52")
+    ax.bar(x, pos, width, label=f"Significant positive {var_prefix} change", color="#55A868")
+    ax.bar(x, neg, width, bottom=pos, label=f"Significant negative {var_prefix} change", color="#C44E52")
 
-    ax.set_xlabel("Metric")
-    ax.set_ylabel("% of repos")
-    ax.set_title(f"SARIMA: Direction of Trend Change — {group} files")
+    ax.set_xlabel("Metric", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_ylabel("% of repos", fontsize=AXIS_LABEL_FONTSIZE)
+    ax.set_title(f"SARIMA: Direction of {var_prefix.title()} Change — {group} files", fontsize=TITLE_FONTSIZE)
     ax.set_xticks(x)
-    ax.set_xticklabels(df.index, rotation=30, ha="right")
+    ax.set_xticklabels(df.index, rotation=30, ha="right", fontsize=TICK_LABEL_FONTSIZE)
+    ax.tick_params(axis="y", labelsize=TICK_LABEL_FONTSIZE)
     ax.set_ylim(0, 100)
-    ax.legend()
+    ax.legend(fontsize=LEGEND_FONTSIZE)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=150)
@@ -242,6 +268,7 @@ def main() -> None:
     for group in ["All", "Python", "Javascript"]:
         plot_sarima_significance(arimax_df, group=group, output_path=OUTPUT_DIR / f"churn_sarima_significance_{group.lower()}.png")
         plot_trend_direction(arimax_df, group=group, output_path=OUTPUT_DIR / f"churn_sarima_trend_direction_{group.lower()}.png")
+        plot_trend_direction(arimax_df, group=group, output_path=OUTPUT_DIR / f"churn_sarima_post_direction_{group.lower()}.png", var_prefix="post")
 
     print("Done.")
 
